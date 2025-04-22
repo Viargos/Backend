@@ -1,4 +1,3 @@
-// response-validation.interceptor.ts
 import {
   Injectable,
   NestInterceptor,
@@ -15,14 +14,14 @@ export class ResponseValidation implements NestInterceptor {
   intercept(_: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       map((data) => {
-        if (data instanceof Object) {
+        if (data && typeof data === 'object') {
           const errors = validateSync(data);
           if (errors.length > 0) {
             const messages = this.extractErrorMessages(errors);
-            throw new InternalServerErrorException([
-              'Response validation failed',
-              ...messages,
-            ]);
+            throw new InternalServerErrorException({
+              message: 'Response validation failed',
+              errors: messages,
+            });
           }
         }
         return data;
@@ -30,18 +29,10 @@ export class ResponseValidation implements NestInterceptor {
     );
   }
 
-  private extractErrorMessages(
-    errors: ValidationError[],
-    messages: string[] = [],
-  ): string[] {
-    for (const error of errors) {
-      if (error) {
-        if (error.children && error.children.length > 0)
-          this.extractErrorMessages(error.children, messages);
-        const constraints = error.constraints;
-        if (constraints) messages.push(Object.values(constraints).join(', '));
-      }
-    }
-    return messages;
+  private extractErrorMessages(errors: ValidationError[]): string[] {
+    return errors.flatMap((error) => [
+      ...(error.constraints ? Object.values(error.constraints) : []),
+      ...(error.children ? this.extractErrorMessages(error.children) : []),
+    ]);
   }
 }

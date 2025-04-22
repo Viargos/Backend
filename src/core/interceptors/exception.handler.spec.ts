@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { WinstonLogger } from '../../setup/winston.logger';
-import { ExpectionHandler } from './exception.handler';
+import { ExceptionHandler } from './exception.handler';
 import { Test } from '@nestjs/testing';
 import {
   ArgumentsHost,
@@ -13,8 +13,8 @@ import { TokenExpiredError } from '@nestjs/jwt';
 import { HttpArgumentsHost } from '@nestjs/common/interfaces';
 import { StatusCode } from '../http/response';
 
-describe('ExpectionHandler', () => {
-  let exceptionHandler: ExpectionHandler;
+describe('ExceptionHandler', () => {
+  let exceptionHandler: ExceptionHandler;
 
   const mockSetStatus = jest.fn(() => ({ json: mockSetJson }));
   const mockSetJson = jest.fn();
@@ -43,7 +43,7 @@ describe('ExpectionHandler', () => {
 
     const module = await Test.createTestingModule({
       providers: [
-        ExpectionHandler,
+        ExceptionHandler,
         {
           provide: ConfigService,
           useValue: { getOrThrow: mockServiceConfig },
@@ -52,7 +52,7 @@ describe('ExpectionHandler', () => {
       ],
     }).compile();
 
-    exceptionHandler = module.get(ExpectionHandler);
+    exceptionHandler = module.get(ExceptionHandler);
     mockServiceConfig.mockReturnValue({ nodeEnv: 'development' });
   });
 

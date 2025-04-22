@@ -11,6 +11,7 @@ import { Response } from 'express';
 import { ServerConfigName } from './config/server.config';
 import { ConfigService } from '@nestjs/config';
 import { ServerConfig } from './config/server.config';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   console.log('Jay Swaminarayan... Shree Swaminarayan Vijayate...');
@@ -40,8 +41,8 @@ async function bootstrap() {
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('Doctor-Patient API')
-    .setDescription('API documentation for Doctor-Patient system')
+    .setTitle('Nest API')
+    .setDescription('API documentation for Nest system')
     .addBearerAuth()
     .setVersion('1.0')
     .build();
@@ -50,6 +51,12 @@ async function bootstrap() {
   app.getHttpAdapter().get('/swagger.json', (_, res: Response) => {
     res.json(document);
   });
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // Automatically transform request data to DTO instances
+      whitelist: true, // Strip properties that are not defined in the DTO
+    }),
+  );
   await app.listen(serverConfig.port ?? 3000);
 }
 bootstrap();
