@@ -19,6 +19,7 @@ import { Post as PostEntity } from './entities/post.entity';
 import { PostMedia } from './entities/post-media.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { JwtAuthGuard } from 'src/security/jwt-auth.guard';
+import { User } from '../user/entities/user.entity';
 
 @ApiTags('posts')
 @Controller('posts')
@@ -31,17 +32,18 @@ export class PostController {
   @ApiOperation({ summary: 'Create a new post' })
   @ApiResponse({ status: 201, description: 'Post created successfully', type: PostEntity })
   async createPost(@Request() req, @Body() createPostDto: CreatePostDto): Promise<PostEntity> {
-    return this.postService.createPost(req.user.id, createPostDto);
+    return this.postService.createPost(req.user, createPostDto);
   }
 
   @Post(':postId/media')
   @ApiOperation({ summary: 'Add media to a post' })
   @ApiResponse({ status: 201, description: 'Media added successfully', type: PostMedia })
   async addMediaToPost(
+    @Request() req,
     @Param('postId') postId: string,
     @Body() addMediaDto: AddMediaDto,
   ): Promise<PostMedia> {
-    return this.postService.addMediaToPost(postId, addMediaDto);
+    return this.postService.addMediaToPost(req.user, postId, addMediaDto);
   }
 
   @Get(':postId')
@@ -66,14 +68,14 @@ export class PostController {
   @ApiOperation({ summary: 'Like a post' })
   @ApiResponse({ status: 200, description: 'Post liked successfully' })
   async likePost(@Request() req, @Param('postId') postId: string): Promise<void> {
-    return this.postService.likePost(postId, req.user.id);
+    return this.postService.likePost(postId, req.user);
   }
 
   @Delete(':postId/like')
   @ApiOperation({ summary: 'Unlike a post' })
   @ApiResponse({ status: 200, description: 'Post unliked successfully' })
   async unlikePost(@Request() req, @Param('postId') postId: string): Promise<void> {
-    return this.postService.unlikePost(postId, req.user.id);
+    return this.postService.unlikePost(postId, req.user);
   }
 
   @Post(':postId/comments')
@@ -85,14 +87,14 @@ export class PostController {
     @Body('content') content: string,
     @Body('parentId') parentId?: string,
   ): Promise<PostComment> {
-    return this.postService.addComment(postId, req.user.id, content, parentId);
+    return this.postService.addComment(postId, req.user, content, parentId);
   }
 
   @Delete('comments/:commentId')
   @ApiOperation({ summary: 'Delete a comment' })
   @ApiResponse({ status: 200, description: 'Comment deleted successfully' })
   async deleteComment(@Request() req, @Param('commentId') commentId: string): Promise<void> {
-    return this.postService.deleteComment(commentId, req.user.id);
+    return this.postService.deleteComment(commentId, req.user);
   }
 
   @Get(':postId/comments')

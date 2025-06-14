@@ -10,9 +10,6 @@ export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id' })
-  userId: string;
-
   @Column({ type: 'text' })
   description: string;
 

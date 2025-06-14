@@ -81,22 +81,31 @@ export class AuthService {
 
       // Generate and save OTP
       const otp = OtpHelper.generateOtp();
+
       const otpHash = OtpHelper.encodeOtp(otp);
-      await this.userOtpRepository.createOtp(user.id, otpHash, OtpType.EMAIL_VERIFICATION);
+      await this.userOtpRepository.createOtp(
+        user.id,
+        otpHash,
+        OtpType.EMAIL_VERIFICATION,
+      );
 
       // Send OTP email
-      await this.mailerService.sendMail({
-        to: email,
-        subject: 'Verify your email address',
-        template: 'email-verification',
-        context: {
-          username,
-          otp,
-        },
-      });
+      // await this.mailerService.sendMail({
+      //   to: email,
+      //   subject: 'Verify your email address',
+      //   template: 'email-verification',
+      //   context: {
+      //     username,
+      //     otp,
+      //   },
+      // });
 
-      return { message: 'User registered successfully. Please verify your email.' };
+      return {
+        message: 'User registered successfully. Please verify your email.',
+      };
     } catch (error) {
+      console.log(error, '-----error--------');
+
       this.logger.error(`Signup failed: ${error.message}`, error.stack);
       if (
         error instanceof ConflictException ||
@@ -109,7 +118,9 @@ export class AuthService {
   }
 
   // Verify OTP
-  async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{ message: string; accessToken?: string }> {
+  async verifyOtp(
+    verifyOtpDto: VerifyOtpDto,
+  ): Promise<{ message: string; accessToken?: string }> {
     try {
       const { email, otp } = verifyOtpDto;
       const user = await this.userRepository.getUserByEmail(email);
@@ -125,7 +136,9 @@ export class AuthService {
       );
 
       if (new Date() > userOtp.otpExpiry) {
-        throw new BadRequestException('OTP has expired. Please request a new one.');
+        throw new BadRequestException(
+          'OTP has expired. Please request a new one.',
+        );
       }
 
       const decodedOtp = OtpHelper.decodeOtp(userOtp.otpHash);
@@ -145,8 +158,13 @@ export class AuthService {
       }
 
       // If this is password reset verification, generate and return token
-      const payload = { email: user.email, id: user.id, purpose: 'password_reset' };
-      const expiresIn = this.configService.get<AuthKeyConfig>(AuthKeyConfigName);
+      const payload = {
+        email: user.email,
+        id: user.id,
+        purpose: 'password_reset',
+      };
+      const expiresIn =
+        this.configService.get<AuthKeyConfig>(AuthKeyConfigName);
       const accessToken = this.jwtService.sign(payload, {
         expiresIn: '15m', // Short-lived token for password reset
       });
@@ -156,7 +174,10 @@ export class AuthService {
         accessToken,
       };
     } catch (error) {
-      this.logger.error(`OTP verification failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `OTP verification failed: ${error.message}`,
+        error.stack,
+      );
       if (
         error instanceof UnauthorizedException ||
         error instanceof BadRequestException
@@ -168,7 +189,9 @@ export class AuthService {
   }
 
   // Forgot Password
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
     try {
       const { email } = forgotPasswordDto;
       const user = await this.userRepository.getUserByEmail(email);
@@ -186,10 +209,17 @@ export class AuthService {
       const otpHash = OtpHelper.encodeOtp(otp);
 
       // Invalidate any existing password reset OTPs
-      await this.userOtpRepository.invalidateUserOtps(user.id, OtpType.PASSWORD_RESET);
+      await this.userOtpRepository.invalidateUserOtps(
+        user.id,
+        OtpType.PASSWORD_RESET,
+      );
 
       // Create new OTP
-      await this.userOtpRepository.createOtp(user.id, otpHash, OtpType.PASSWORD_RESET);
+      await this.userOtpRepository.createOtp(
+        user.id,
+        otpHash,
+        OtpType.PASSWORD_RESET,
+      );
 
       // Send OTP email
       await this.mailerService.sendMail({
@@ -204,19 +234,27 @@ export class AuthService {
 
       return { message: 'Password reset OTP sent to your email' };
     } catch (error) {
-      this.logger.error(`Forgot password failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Forgot password failed: ${error.message}`,
+        error.stack,
+      );
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
       ) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to process password reset request');
+      throw new InternalServerErrorException(
+        'Failed to process password reset request',
+      );
     }
   }
 
   // Reset Password
-  async resetPassword(userId: string, resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+  async resetPassword(
+    userId: string,
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
     try {
       const { newPassword } = resetPasswordDto;
       const user = await this.userRepository.getUserById(userId);
@@ -247,6 +285,25 @@ export class AuthService {
   async signIn(user: User): Promise<{ accessToken: string }> {
     try {
       if (!user.isActive) {
+        const otp = OtpHelper.generateOtp();
+
+        const otpHash = OtpHelper.encodeOtp(otp);
+        await this.userOtpRepository.createOtp(
+          user.id,
+          otpHash,
+          OtpType.EMAIL_VERIFICATION,
+        );
+
+        // Send OTP email
+        await this.mailerService.sendMail({
+          to: user?.email,
+          subject: 'Verify your email address',
+          template: 'email-verification',
+          context: {
+            username: user?.username,
+            otp,
+          },
+        });
         throw new UnauthorizedException('Please verify your email first');
       }
 
@@ -261,7 +318,7 @@ export class AuthService {
       };
     } catch (error) {
       this.logger.error(`Signin failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('Login failed');
+      throw new InternalServerErrorException(error.message || 'Login failed');
     }
   }
 
