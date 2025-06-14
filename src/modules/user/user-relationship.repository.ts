@@ -5,59 +5,70 @@ import { UserRelationship } from './entities/user-relationship.entity';
 import { User } from './entities/user.entity';
 
 @Injectable()
-export class UserRelationshipRepository {
+export class UserRelationshipRepository extends Repository<UserRelationship> {
   constructor(
     @InjectRepository(UserRelationship)
-    private readonly userRelationshipRepo: Repository<UserRelationship>,
-  ) {}
+    private readonly repository: Repository<UserRelationship>,
+  ) {
+    super(repository.target, repository.manager, repository.queryRunner);
+  }
 
-  async followUser(followerId: string, followingId: string): Promise<UserRelationship> {
-    const relationship = this.userRelationshipRepo.create({
-      followerId,
-      followingId,
+  async followUser(follower: User, following: User): Promise<UserRelationship> {
+    const relationship = this.repository.create({
+      follower: { id: follower.id },
+      following: { id: following.id },
     });
-    return this.userRelationshipRepo.save(relationship);
+    return this.repository.save(relationship);
   }
 
   async unfollowUser(followerId: string, followingId: string): Promise<void> {
-    await this.userRelationshipRepo.delete({
-      followerId,
-      followingId,
-    });
+    await this.repository
+      .createQueryBuilder()
+      .delete()
+      .from(UserRelationship)
+      .where('follower_id = :followerId', { followerId })
+      .andWhere('following_id = :followingId', { followingId })
+      .execute();
   }
 
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-    const relationship = await this.userRelationshipRepo.findOne({
-      where: { followerId, followingId },
-    });
+    const relationship = await this.repository
+      .createQueryBuilder('relationship')
+      .where('relationship.follower_id = :followerId', { followerId })
+      .andWhere('relationship.following_id = :followingId', { followingId })
+      .getOne();
     return !!relationship;
   }
 
   async getFollowers(userId: string): Promise<User[]> {
-    const relationships = await this.userRelationshipRepo.find({
-      where: { followingId: userId },
-      relations: ['follower'],
-    });
+    const relationships = await this.repository
+      .createQueryBuilder('relationship')
+      .leftJoinAndSelect('relationship.follower', 'follower')
+      .where('relationship.following_id = :userId', { userId })
+      .getMany();
     return relationships.map(rel => rel.follower);
   }
 
   async getFollowing(userId: string): Promise<User[]> {
-    const relationships = await this.userRelationshipRepo.find({
-      where: { followerId: userId },
-      relations: ['following'],
-    });
+    const relationships = await this.repository
+      .createQueryBuilder('relationship')
+      .leftJoinAndSelect('relationship.following', 'following')
+      .where('relationship.follower_id = :userId', { userId })
+      .getMany();
     return relationships.map(rel => rel.following);
   }
 
   async getFollowerCount(userId: string): Promise<number> {
-    return this.userRelationshipRepo.count({
-      where: { followingId: userId },
-    });
+    return this.repository
+      .createQueryBuilder('relationship')
+      .where('relationship.following_id = :userId', { userId })
+      .getCount();
   }
 
   async getFollowingCount(userId: string): Promise<number> {
-    return this.userRelationshipRepo.count({
-      where: { followerId: userId },
-    });
+    return this.repository
+      .createQueryBuilder('relationship')
+      .where('relationship.follower_id = :userId', { userId })
+      .getCount();
   }
 } 

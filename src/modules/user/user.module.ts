@@ -23,6 +23,6 @@ import { UserRelationshipController } from './user-relationship.controller';
     UserRelationshipRepository,
     UserRelationshipService,
   ],
-  exports: [UserRepository, UserService, UserOtpRepository],
+  exports: [UserRepository, UserService, UserOtpRepository, UserRelationshipService, UserRelationshipRepository],
 })
 export class UserModule {}

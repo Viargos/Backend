@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { UserRelationshipRepository } from './user-relationship.repository';
-import { UserRepository } from './user.repository';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { User } from './entities/user.entity';
 import { FollowUserDto } from './dto/follow-user.dto';
+import { UserRepository } from './user.repository';
+import { UserRelationshipRepository } from './user-relationship.repository';
 
 @Injectable()
 export class UserRelationshipService {
@@ -10,8 +11,8 @@ export class UserRelationshipService {
     private readonly userRepository: UserRepository,
   ) {}
 
-  async followUser(followerId: string, followUserDto: FollowUserDto): Promise<{ message: string }> {
-    const { userId: followingId } = followUserDto;
+  async followUser(follower: User, followUserDto: FollowUserDto): Promise<{ message: string }> {
+    const { userId: followingId } = followUserDto;    
 
     // Check if user exists
     const followingUser = await this.userRepository.getUserById(followingId);
@@ -20,22 +21,22 @@ export class UserRelationshipService {
     }
 
     // Prevent self-following
-    if (followerId === followingId) {
+    if (follower.id === followingId) {
       throw new BadRequestException('You cannot follow yourself');
     }
 
     // Check if already following
-    const isFollowing = await this.userRelationshipRepo.isFollowing(followerId, followingId);
+    const isFollowing = await this.userRelationshipRepo.isFollowing(follower.id, followingId);
     if (isFollowing) {
       throw new BadRequestException('You are already following this user');
     }
 
     // Create follow relationship
-    await this.userRelationshipRepo.followUser(followerId, followingId);
+    await this.userRelationshipRepo.followUser(follower, followingUser);
     return { message: 'Successfully followed user' };
   }
 
-  async unfollowUser(followerId: string, followingId: string): Promise<{ message: string }> {
+  async unfollowUser(follower: User, followingId: string): Promise<{ message: string }> {
     // Check if user exists
     const followingUser = await this.userRepository.getUserById(followingId);
     if (!followingUser) {
@@ -43,31 +44,29 @@ export class UserRelationshipService {
     }
 
     // Check if following
-    const isFollowing = await this.userRelationshipRepo.isFollowing(followerId, followingId);
+    const isFollowing = await this.userRelationshipRepo.isFollowing(follower.id, followingId);
     if (!isFollowing) {
       throw new BadRequestException('You are not following this user');
     }
 
     // Remove follow relationship
-    await this.userRelationshipRepo.unfollowUser(followerId, followingId);
+    await this.userRelationshipRepo.unfollowUser(follower.id, followingId);
     return { message: 'Successfully unfollowed user' };
   }
 
-  async getFollowers(userId: string) {
-    const followers = await this.userRelationshipRepo.getFollowers(userId);
-    const count = await this.userRelationshipRepo.getFollowerCount(userId);
-    return {
-      followers,
-      count,
-    };
+  async getFollowers(userId: string): Promise<User[]> {
+    return this.userRelationshipRepo.getFollowers(userId);
   }
 
-  async getFollowing(userId: string) {
-    const following = await this.userRelationshipRepo.getFollowing(userId);
-    const count = await this.userRelationshipRepo.getFollowingCount(userId);
-    return {
-      following,
-      count,
-    };
+  async getFollowing(userId: string): Promise<User[]> {
+    return this.userRelationshipRepo.getFollowing(userId);
+  }
+
+  async getFollowerCount(userId: string): Promise<number> {
+    return this.userRelationshipRepo.getFollowerCount(userId);
+  }
+
+  async getFollowingCount(userId: string): Promise<number> {
+    return this.userRelationshipRepo.getFollowingCount(userId);
   }
 } 

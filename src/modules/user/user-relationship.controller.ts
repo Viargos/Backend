@@ -20,8 +20,8 @@ export class UserRelationshipController {
   async followUser(
     @Request() req: { user: User },
     @Body() followUserDto: FollowUserDto,
-  ) {
-    return this.userRelationshipService.followUser(req.user.id, followUserDto);
+  ) {    
+    return this.userRelationshipService.followUser(req.user, followUserDto);
   }
 
   @Delete('unfollow/:userId')
@@ -33,7 +33,7 @@ export class UserRelationshipController {
     @Request() req: { user: User },
     @Param('userId') userId: string,
   ) {
-    return this.userRelationshipService.unfollowUser(req.user.id, userId);
+    return this.userRelationshipService.unfollowUser(req.user, userId);
   }
 
   @Get('followers')
