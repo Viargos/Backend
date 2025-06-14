@@ -1,3 +1,4 @@
+import Post from 'src/modules/post/entity/post.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -5,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
 
 @Entity()
@@ -26,6 +28,21 @@ export class User {
   @Column({ unique: true, nullable: true })
   @Index()
   phoneNumber: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio: string;
+
+  @Column({ nullable: true })
+  profileImage: string;
+
+  @Column({ nullable: true })
+  location: string;
+
+  @Column({ default: false })
+  isActive: boolean;
+
+  @OneToMany(() => Post, (post) => post.user)
+  posts: Post[];
 
   @CreateDateColumn()
   createdAt: Date;

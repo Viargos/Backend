@@ -1,25 +1,26 @@
-import { IsEmail, IsNotEmpty, MinLength, MaxLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SignInDto {
   @ApiProperty({
-    example: 'user@example.com',
     description: 'User email address',
+    example: 'user@example.com',
     required: true,
+    type: String,
   })
-  @IsEmail({}, { message: 'Invalid email format' })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
   @IsNotEmpty({ message: 'Email is required' })
-  readonly email: string;
+  email: string;
 
   @ApiProperty({
-    example: 'securePassword123',
-    description: 'User password (must be at least 6 characters)',
-    minLength: 6,
-    maxLength: 100,
+    description: 'User password (minimum 6 characters)',
+    example: 'password123',
     required: true,
+    type: String,
+    minLength: 6,
   })
+  @IsString({ message: 'Password must be a string' })
   @IsNotEmpty({ message: 'Password is required' })
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
-  @MaxLength(100, { message: 'Password cannot exceed 100 characters' })
-  readonly password: string;
+  password: string;
 }

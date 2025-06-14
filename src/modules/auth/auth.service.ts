@@ -4,6 +4,8 @@ import {
   Logger,
   ConflictException,
   InternalServerErrorException,
+  UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +16,13 @@ import { SignUpDto } from './dto/signup.dto';
 import { UserRepository } from '../user/user.repository';
 import { ConfigService } from '@nestjs/config';
 import { AuthKeyConfig, AuthKeyConfigName } from 'src/config/authkey.config';
+import { OtpHelper } from 'src/utils/otp.helper';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { MailerService } from '@nestjs-modules/mailer';
+import { UserOtpRepository } from '../user/user-otp.repository';
+import { OtpType } from '../user/entities/user-otp.entity';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +33,9 @@ export class AuthService {
     private readonly userRepo: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly userRepository: UserRepository,
+    private readonly userOtpRepository: UserOtpRepository,
     private readonly configService: ConfigService,
+    private readonly mailerService: MailerService,
   ) {}
 
   // User Signup
@@ -63,10 +74,28 @@ export class AuthService {
         email,
         phoneNumber,
         password: hashedPassword,
+        isActive: false,
       });
 
       await this.userRepo.save(user);
-      return { message: 'User registered successfully' };
+
+      // Generate and save OTP
+      const otp = OtpHelper.generateOtp();
+      const otpHash = OtpHelper.encodeOtp(otp);
+      await this.userOtpRepository.createOtp(user.id, otpHash, OtpType.EMAIL_VERIFICATION);
+
+      // Send OTP email
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Verify your email address',
+        template: 'email-verification',
+        context: {
+          username,
+          otp,
+        },
+      });
+
+      return { message: 'User registered successfully. Please verify your email.' };
     } catch (error) {
       this.logger.error(`Signup failed: ${error.message}`, error.stack);
       if (
@@ -79,9 +108,148 @@ export class AuthService {
     }
   }
 
+  // Verify OTP
+  async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{ message: string; accessToken?: string }> {
+    try {
+      const { email, otp } = verifyOtpDto;
+      const user = await this.userRepository.getUserByEmail(email);
+
+      if (!user) {
+        throw new UnauthorizedException('Invalid email address');
+      }
+
+      // Get the latest OTP for the user
+      const userOtp = await this.userOtpRepository.getLatestOtp(
+        user.id,
+        user.isActive ? OtpType.PASSWORD_RESET : OtpType.EMAIL_VERIFICATION,
+      );
+
+      if (new Date() > userOtp.otpExpiry) {
+        throw new BadRequestException('OTP has expired. Please request a new one.');
+      }
+
+      const decodedOtp = OtpHelper.decodeOtp(userOtp.otpHash);
+      if (decodedOtp !== otp) {
+        throw new UnauthorizedException('Invalid OTP');
+      }
+
+      // Mark OTP as used
+      await this.userOtpRepository.markOtpAsUsed(userOtp.id);
+
+      // If this is email verification, activate the account
+      if (!user.isActive) {
+        await this.userRepository.updateUser(user.id, {
+          isActive: true,
+        });
+        return { message: 'Email verified successfully' };
+      }
+
+      // If this is password reset verification, generate and return token
+      const payload = { email: user.email, id: user.id, purpose: 'password_reset' };
+      const expiresIn = this.configService.get<AuthKeyConfig>(AuthKeyConfigName);
+      const accessToken = this.jwtService.sign(payload, {
+        expiresIn: '15m', // Short-lived token for password reset
+      });
+
+      return {
+        message: 'OTP verified successfully',
+        accessToken,
+      };
+    } catch (error) {
+      this.logger.error(`OTP verification failed: ${error.message}`, error.stack);
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('OTP verification failed');
+    }
+  }
+
+  // Forgot Password
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+    try {
+      const { email } = forgotPasswordDto;
+      const user = await this.userRepository.getUserByEmail(email);
+
+      if (!user) {
+        throw new NotFoundException('No account found with this email address');
+      }
+
+      if (!user.isActive) {
+        throw new BadRequestException('Please verify your email first');
+      }
+
+      // Generate and save OTP
+      const otp = OtpHelper.generateOtp();
+      const otpHash = OtpHelper.encodeOtp(otp);
+
+      // Invalidate any existing password reset OTPs
+      await this.userOtpRepository.invalidateUserOtps(user.id, OtpType.PASSWORD_RESET);
+
+      // Create new OTP
+      await this.userOtpRepository.createOtp(user.id, otpHash, OtpType.PASSWORD_RESET);
+
+      // Send OTP email
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Password Reset Request',
+        template: 'password-reset',
+        context: {
+          username: user.username,
+          otp,
+        },
+      });
+
+      return { message: 'Password reset OTP sent to your email' };
+    } catch (error) {
+      this.logger.error(`Forgot password failed: ${error.message}`, error.stack);
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to process password reset request');
+    }
+  }
+
+  // Reset Password
+  async resetPassword(userId: string, resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    try {
+      const { newPassword } = resetPasswordDto;
+      const user = await this.userRepository.getUserById(userId);
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await this.userRepository.updateUser(user.id, {
+        password: hashedPassword,
+      });
+
+      return { message: 'Password reset successful' };
+    } catch (error) {
+      this.logger.error(`Password reset failed: ${error.message}`, error.stack);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to reset password');
+    }
+  }
+
   // User Signin
   async signIn(user: User): Promise<{ accessToken: string }> {
     try {
+      if (!user.isActive) {
+        throw new UnauthorizedException('Please verify your email first');
+      }
+
       const payload = { email: user.email, id: user.id };
       const expiresIn =
         this.configService.get<AuthKeyConfig>(AuthKeyConfigName);
@@ -102,9 +270,16 @@ export class AuthService {
 
     if (user && bcrypt.compareSync(password, user.password)) {
       const { password, ...result } = user;
-
       return result;
     }
     return null;
+  }
+
+  async signup(signUpDto: SignUpDto) {
+    return this.signUp(signUpDto);
+  }
+
+  async signin(user: User) {
+    return this.signIn(user);
   }
 }
