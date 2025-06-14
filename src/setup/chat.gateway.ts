@@ -15,7 +15,7 @@ import { ChatService } from 'src/modules/chat/chat.service';
 
 @WebSocketGateway({
   cors: {
-    origin: '*', // Configure this according to your frontend URL
+    origin: '*',
   },
   namespace: 'chat',
 })

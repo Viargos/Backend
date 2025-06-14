@@ -4,6 +4,7 @@ import { PostMedia } from './post-media.entity';
 import { PostLike } from './post-like.entity';
 import { PostComment } from './post-comment.entity';
 
+
 @Entity('posts')
 export class Post {
   @PrimaryGeneratedColumn('uuid')
