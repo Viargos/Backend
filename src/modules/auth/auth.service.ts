@@ -82,6 +82,9 @@ export class AuthService {
       // Generate and save OTP
       const otp = OtpHelper.generateOtp();
 
+      console.log(otp,'------otp------');
+      
+
       const otpHash = OtpHelper.encodeOtp(otp);
       await this.userOtpRepository.createOtp(
         user.id,

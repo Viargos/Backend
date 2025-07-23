@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseFactory } from './setup/database.factory';
 import { PostModule } from './modules/post/post.module';
+import { JourneyModule } from './modules/journey/journey.module';
 import authkeyConfig from './config/authkey.config';
 
 @Module({
@@ -26,6 +27,7 @@ import authkeyConfig from './config/authkey.config';
     UserModule,
     AuthModule,
     PostModule,
+    JourneyModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
 import { Post } from 'src/modules/post/entities/post.entity';
+import { Journey } from 'src/modules/journey/entities/journey.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -43,6 +44,9 @@ export class User {
 
   @OneToMany(() => Post, (post) => post.user)
   posts: Post[];
+
+  @OneToMany(() => Journey, (journey) => journey.user)
+  journeys: Journey[];
 
   @CreateDateColumn()
   createdAt: Date;
