@@ -15,6 +15,10 @@ export class JourneyService {
     return this.journeyRepository.findAll();
   }
 
+  async findByUser(userId: string): Promise<Journey[]> {
+    return this.journeyRepository.findByUser(userId);
+  }
+
   async findOne(id: string): Promise<Journey> {
     const journey = await this.journeyRepository.findOneById(id);
     if (!journey) {
@@ -23,7 +27,10 @@ export class JourneyService {
     return journey;
   }
 
-  async update(id: string, updateJourneyDto: CreateJourneyDto): Promise<Journey> {
+  async update(
+    id: string,
+    updateJourneyDto: CreateJourneyDto,
+  ): Promise<Journey> {
     const journey = await this.journeyRepository.findOneById(id);
     if (!journey) {
       throw new NotFoundException('Journey not found');

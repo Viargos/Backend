@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PostRepository } from './post.repository';
 import { CreatePostDto } from './dto/create-post.dto';
 import { AddMediaDto } from './dto/add-media.dto';
@@ -15,7 +19,11 @@ export class PostService {
     return this.postRepository.createPost(user, createPostDto.description);
   }
 
-  async addMediaToPost(user: User, postId: string, addMediaDto: AddMediaDto): Promise<PostMedia> {
+  async addMediaToPost(
+    user: User,
+    postId: string,
+    addMediaDto: AddMediaDto,
+  ): Promise<PostMedia> {
     const post = await this.postRepository.getPostById(postId);
     if (!post) {
       throw new NotFoundException('Post not found');
@@ -36,8 +44,16 @@ export class PostService {
     return post;
   }
 
-  async getPostsByUser(userId: string, limit: number = 10, offset: number = 0): Promise<Post[]> {
+  async getPostsByUser(
+    userId: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<Post[]> {
     return this.postRepository.getPostsByUserId(userId, limit, offset);
+  }
+
+  async getPostCountByUser(userId: string): Promise<number> {
+    return this.postRepository.getPostCountByUserId(userId);
   }
 
   async likePost(postId: string, user: User): Promise<void> {
@@ -58,7 +74,12 @@ export class PostService {
     await this.postRepository.unlikePost(post, user);
   }
 
-  async addComment(postId: string, user: User, content: string, parentId?: string): Promise<PostComment> {
+  async addComment(
+    postId: string,
+    user: User,
+    content: string,
+    parentId?: string,
+  ): Promise<PostComment> {
     const post = await this.postRepository.getPostById(postId);
     if (!post) {
       throw new NotFoundException('Post not found');
@@ -67,7 +88,7 @@ export class PostService {
     let parentComment: PostComment | undefined;
     if (parentId) {
       const comments = await this.postRepository.getComments(postId);
-      parentComment = comments.find(comment => comment.id === parentId);
+      parentComment = comments.find((comment) => comment.id === parentId);
       if (!parentComment) {
         throw new NotFoundException('Parent comment not found');
       }
@@ -90,7 +111,11 @@ export class PostService {
     await this.postRepository.deleteComment(comment);
   }
 
-  async getComments(postId: string, limit: number = 10, offset: number = 0): Promise<PostComment[]> {
+  async getComments(
+    postId: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<PostComment[]> {
     const post = await this.postRepository.getPostById(postId);
     if (!post) {
       throw new NotFoundException('Post not found');
@@ -99,7 +124,11 @@ export class PostService {
     return this.postRepository.getComments(postId, limit, offset);
   }
 
-  async getReplies(commentId: string, limit: number = 10, offset: number = 0): Promise<PostComment[]> {
+  async getReplies(
+    commentId: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<PostComment[]> {
     return this.postRepository.getReplies(commentId, limit, offset);
   }
 }

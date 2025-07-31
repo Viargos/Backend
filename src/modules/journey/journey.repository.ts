@@ -17,14 +17,27 @@ export class JourneyRepository {
   }
 
   async findOneById(id: string): Promise<Journey> {
-    return await this.journeyRepo.findOne({ where: { id }, relations: ['days', 'days.places'] });
+    return await this.journeyRepo.findOne({
+      where: { id },
+      relations: ['days', 'days.places'],
+    });
   }
 
   async findAll(): Promise<Journey[]> {
     return await this.journeyRepo.find({ relations: ['days', 'days.places'] });
   }
 
-  async updateJourney(id: string, updateJourneyDto: CreateJourneyDto): Promise<Journey> {
+  async findByUser(userId: string): Promise<Journey[]> {
+    return await this.journeyRepo.find({
+      where: { user: { id: userId } },
+      relations: ['days', 'days.places'],
+    });
+  }
+
+  async updateJourney(
+    id: string,
+    updateJourneyDto: CreateJourneyDto,
+  ): Promise<Journey> {
     await this.journeyRepo.update(id, updateJourneyDto);
     return this.findOneById(id);
   }

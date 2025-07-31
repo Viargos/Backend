@@ -33,7 +33,10 @@ export class PostRepository {
     return await this.postRepo.save(post);
   }
 
-  async addMediaToPost(post: Post, addMediaDto: AddMediaDto): Promise<PostMedia> {
+  async addMediaToPost(
+    post: Post,
+    addMediaDto: AddMediaDto,
+  ): Promise<PostMedia> {
     const media = this.postMediaRepo.create({
       post,
       type: addMediaDto.type,
@@ -52,13 +55,23 @@ export class PostRepository {
     });
   }
 
-  async getPostsByUserId(userId: string, limit: number = 10, offset: number = 0): Promise<Post[]> {
+  async getPostsByUserId(
+    userId: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<Post[]> {
     return await this.postRepo.find({
       where: { user: { id: userId } },
       relations: ['user', 'media', 'likes', 'comments'],
       order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,
+    });
+  }
+
+  async getPostCountByUserId(userId: string): Promise<number> {
+    return await this.postRepo.count({
+      where: { user: { id: userId } },
     });
   }
 
@@ -88,7 +101,12 @@ export class PostRepository {
     }
   }
 
-  async addComment(post: Post, user: User, content: string, parentComment?: PostComment): Promise<PostComment> {
+  async addComment(
+    post: Post,
+    user: User,
+    content: string,
+    parentComment?: PostComment,
+  ): Promise<PostComment> {
     const comment = this.postCommentRepo.create({
       post,
       user,
@@ -100,7 +118,11 @@ export class PostRepository {
     const savedComment = await this.postCommentRepo.save(comment);
 
     if (parentComment) {
-      await this.postCommentRepo.increment({ id: parentComment.id }, 'replyCount', 1);
+      await this.postCommentRepo.increment(
+        { id: parentComment.id },
+        'replyCount',
+        1,
+      );
     }
 
     await this.postRepo.increment({ id: post.id }, 'commentCount', 1);
@@ -111,7 +133,11 @@ export class PostRepository {
   async deleteComment(comment: PostComment): Promise<void> {
     if (comment) {
       if (comment.parent) {
-        await this.postCommentRepo.decrement({ id: comment.parent.id }, 'replyCount', 1);
+        await this.postCommentRepo.decrement(
+          { id: comment.parent.id },
+          'replyCount',
+          1,
+        );
       }
 
       await this.postRepo.decrement({ id: comment.post.id }, 'commentCount', 1);
@@ -119,7 +145,11 @@ export class PostRepository {
     }
   }
 
-  async getComments(postId: string, limit: number = 10, offset: number = 0): Promise<PostComment[]> {
+  async getComments(
+    postId: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<PostComment[]> {
     return await this.postCommentRepo.find({
       where: { post: { id: postId }, parent: null },
       relations: ['user', 'post'],
@@ -129,7 +159,11 @@ export class PostRepository {
     });
   }
 
-  async getReplies(commentId: string, limit: number = 10, offset: number = 0): Promise<PostComment[]> {
+  async getReplies(
+    commentId: string,
+    limit: number = 10,
+    offset: number = 0,
+  ): Promise<PostComment[]> {
     return await this.postCommentRepo.find({
       where: { parent: { id: commentId } },
       relations: ['user', 'post'],
@@ -138,4 +172,4 @@ export class PostRepository {
       skip: offset,
     });
   }
-} 
+}
