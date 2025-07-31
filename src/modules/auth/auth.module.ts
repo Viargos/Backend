@@ -44,7 +44,7 @@ import { join } from 'path';
           from: `"No Reply" <${configService.get('MAIL_FROM')}>`,
         },
         template: {
-          dir: join(__dirname, '../../templates'),
+          dir: join(process.cwd(), 'src/templates'),
           adapter: new HandlebarsAdapter(),
           options: {
             strict: true,

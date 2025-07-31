@@ -82,8 +82,7 @@ export class AuthService {
       // Generate and save OTP
       const otp = OtpHelper.generateOtp();
 
-      console.log(otp,'------otp------');
-      
+      console.log(otp, '------otp------');
 
       const otpHash = OtpHelper.encodeOtp(otp);
       await this.userOtpRepository.createOtp(
@@ -92,16 +91,27 @@ export class AuthService {
         OtpType.EMAIL_VERIFICATION,
       );
 
-      // Send OTP email
-      // await this.mailerService.sendMail({
-      //   to: email,
-      //   subject: 'Verify your email address',
-      //   template: 'email-verification',
-      //   context: {
-      //     username,
-      //     otp,
-      //   },
-      // });
+      // Send OTP email (disabled for development)
+      try {
+        const typeOfTemplate = 'email-verification';
+        const sendEmail = async (typeOfTemplate: string) => {
+          await this.mailerService.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Verify your email address',
+            template: typeOfTemplate,
+            context: {
+              username,
+              otp,
+            },
+          });
+          console.log('email sent successfully');
+        };
+        sendEmail(typeOfTemplate);
+      } catch (emailError) {
+        this.logger.warn(`Email sending failed: ${emailError.message}`);
+        // Don't fail signup if email fails, just log it
+      }
 
       return {
         message: 'User registered successfully. Please verify your email.',
@@ -224,16 +234,16 @@ export class AuthService {
         OtpType.PASSWORD_RESET,
       );
 
-      // Send OTP email
-      await this.mailerService.sendMail({
-        to: email,
-        subject: 'Password Reset Request',
-        template: 'password-reset',
-        context: {
-          username: user.username,
-          otp,
-        },
-      });
+      // Send OTP email (disabled for development)
+      // await this.mailerService.sendMail({
+      //   to: email,
+      //   subject: 'Password Reset Request',
+      //   template: 'password-reset',
+      //   context: {
+      //     username: user.username,
+      //     otp,
+      //   },
+      // });
 
       return { message: 'Password reset OTP sent to your email' };
     } catch (error) {
@@ -297,16 +307,16 @@ export class AuthService {
           OtpType.EMAIL_VERIFICATION,
         );
 
-        // Send OTP email
-        await this.mailerService.sendMail({
-          to: user?.email,
-          subject: 'Verify your email address',
-          template: 'email-verification',
-          context: {
-            username: user?.username,
-            otp,
-          },
-        });
+        // Send OTP email (disabled for development)
+        // await this.mailerService.sendMail({
+        //   to: user?.email,
+        //   subject: 'Verify your email address',
+        //   template: 'email-verification',
+        //   context: {
+        //     username: user?.username,
+        //     otp,
+        //   },
+        // });
         throw new UnauthorizedException('Please verify your email first');
       }
 
