@@ -12,6 +12,8 @@ import { ServerConfigName } from './config/server.config';
 import { ConfigService } from '@nestjs/config';
 import { ServerConfig } from './config/server.config';
 import { ValidationPipe } from '@nestjs/common';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 
 async function bootstrap() {
   console.log('Jay Swaminarayan... Shree Swaminarayan Vijayate...');
@@ -36,6 +38,15 @@ async function bootstrap() {
   app.use(helmet());
 
   app.use(compression());
+
+  // Serve static files from uploads directory
+  const uploadsDir = join(process.cwd(), 'uploads');
+  if (!existsSync(uploadsDir)) {
+    mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.useStaticAssets(uploadsDir, {
+    prefix: '/uploads/',
+  });
 
   app.setGlobalPrefix('api');
 

@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { UserRepository } from './user.repository';
@@ -10,10 +13,15 @@ import { UserRelationship } from './entities/user-relationship.entity';
 import { UserRelationshipRepository } from './user-relationship.repository';
 import { UserRelationshipService } from './user-relationship.service';
 import { UserRelationshipController } from './user-relationship.controller';
+import { S3Service } from './s3.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserOtp, UserRelationship]),
+    ConfigModule,
+    MulterModule.register({
+      storage: memoryStorage(),
+    }),
   ],
   controllers: [UserController, UserRelationshipController],
   providers: [
@@ -22,7 +30,14 @@ import { UserRelationshipController } from './user-relationship.controller';
     UserOtpRepository,
     UserRelationshipRepository,
     UserRelationshipService,
+    S3Service,
   ],
-  exports: [UserRepository, UserService, UserOtpRepository, UserRelationshipService, UserRelationshipRepository],
+  exports: [
+    UserRepository,
+    UserService,
+    UserOtpRepository,
+    UserRelationshipService,
+    UserRelationshipRepository,
+  ],
 })
 export class UserModule {}

@@ -37,6 +37,9 @@ export class User {
   profileImage: string;
 
   @Column({ nullable: true })
+  bannerImage: string;
+
+  @Column({ nullable: true })
   location: string;
 
   @Column({ default: false })

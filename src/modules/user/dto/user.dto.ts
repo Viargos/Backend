@@ -52,11 +52,31 @@ export class UserDto {
   })
   readonly updatedAt: Date;
 
+  @ApiProperty({
+    example: 'https://bucket.s3.amazonaws.com/profile-images/user-id/image.jpg',
+    description: 'User profile image URL',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  readonly profileImage?: string;
+
+  @ApiProperty({
+    example: 'https://bucket.s3.amazonaws.com/banner-images/user-id/image.jpg',
+    description: 'User banner image URL',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  readonly bannerImage?: string;
+
   constructor(user: User) {
     this.id = user.id;
     this.username = user.username;
     this.email = user.email;
     this.phoneNumber = user.phoneNumber;
+    this.profileImage = user.profileImage;
+    this.bannerImage = user.bannerImage;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
   }

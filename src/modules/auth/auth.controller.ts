@@ -18,6 +18,7 @@ import { LocalAuthGuard } from 'src/security/local-auth.guard';
 import { JwtAuthGuard } from 'src/security/jwt-auth.guard';
 import { PasswordResetGuard } from './guards/password-reset.guard';
 import { User } from '../user/entities/user.entity';
+import { UserDto } from '../user/dto/user.dto';
 import { Public } from './decorators/public.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
@@ -83,6 +84,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Request() req: { user: User }) {
-    return req.user;
+    return new UserDto(req.user);
   }
 }
