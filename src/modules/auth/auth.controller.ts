@@ -33,7 +33,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async signup(@Body() signUpDto: SignUpDto) {
-    return this.authService.signup(signUpDto);
+    return this.authService.signUp(signUpDto);
   }
 
   @Public()

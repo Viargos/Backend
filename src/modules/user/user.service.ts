@@ -32,7 +32,7 @@ export class UserService {
 
   async uploadProfileImage(
     userId: string,
-    file: Express.Multer.File,
+    file: any,
   ): Promise<string> {
     const user = await this.userRepository.getUserById(userId);
     if (!user) {
@@ -60,7 +60,7 @@ export class UserService {
 
   async uploadBannerImage(
     userId: string,
-    file: Express.Multer.File,
+    file: any,
   ): Promise<string> {
     const user = await this.userRepository.getUserById(userId);
     if (!user) {

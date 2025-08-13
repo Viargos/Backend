@@ -116,7 +116,7 @@ export class UserController {
   @ApiOperation({ summary: 'Upload profile image' })
   async uploadProfileImage(
     @Request() req: { user: User },
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
   ): Promise<UploadImageResponseDto> {
     if (!file) {
       throw new Error('No file uploaded');
@@ -138,7 +138,7 @@ export class UserController {
   @ApiOperation({ summary: 'Upload banner image' })
   async uploadBannerImage(
     @Request() req: { user: User },
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
   ): Promise<UploadImageResponseDto> {
     if (!file) {
       throw new Error('No file uploaded');

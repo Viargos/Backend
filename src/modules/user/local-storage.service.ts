@@ -21,7 +21,7 @@ export class LocalStorageService {
   }
 
   async uploadFile(
-    file: Express.Multer.File,
+    file: any,
     folder: string,
     userId: string,
   ): Promise<string> {
@@ -67,14 +67,14 @@ export class LocalStorageService {
   }
 
   async uploadProfileImage(
-    file: Express.Multer.File,
+    file: any,
     userId: string,
   ): Promise<string> {
     return this.uploadFile(file, 'profile-images', userId);
   }
 
   async uploadBannerImage(
-    file: Express.Multer.File,
+    file: any,
     userId: string,
   ): Promise<string> {
     return this.uploadFile(file, 'banner-images', userId);

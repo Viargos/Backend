@@ -28,7 +28,7 @@ export class DatabaseFactory implements TypeOrmOptionsFactory {
       type: 'postgres',
       url: uri,
       entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-      synchronize: true, // Auto-sync DB in development (use migrations in production)
+      synchronize: false, // Auto-sync DB in development (use migrations in production)
       logging: isDevelopment, // Enable query logging in development mode
       extra: {
         connectionTimeoutMillis: 60000, // 60s timeout for initial connection
