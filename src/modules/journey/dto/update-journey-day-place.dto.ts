@@ -1,45 +1,29 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsString, IsNotEmpty, IsOptional, IsNumber } from 'class-validator';
-import { Type } from 'class-transformer';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { CreateJourneyDayPlaceDto } from './create-journey-day-place.dto';
 import { PlaceType } from '../entities/journey-day-place.entity';
 
-export class CreateJourneyDayPlaceDto {
-  @ApiProperty({ enum: PlaceType })
-  @IsEnum(PlaceType)
-  type: PlaceType;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  name: string;
+export class UpdateJourneyDayPlaceDto extends PartialType(CreateJourneyDayPlaceDto) {
+  @ApiProperty({ required: false, enum: PlaceType })
+  type?: PlaceType;
 
   @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
+  name?: string;
+
+  @ApiProperty({ required: false })
   description?: string;
 
   @ApiProperty({ required: false, description: 'Full address of the place' })
-  @IsString()
-  @IsOptional()
   address?: string;
 
   @ApiProperty({ required: false, description: 'Latitude coordinate', example: 48.8566 })
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
   latitude?: number;
 
   @ApiProperty({ required: false, description: 'Longitude coordinate', example: 2.3522 })
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
   longitude?: number;
 
   @ApiProperty({ required: false })
-  @IsOptional()
   startTime?: string;
 
   @ApiProperty({ required: false })
-  @IsOptional()
   endTime?: string;
 }

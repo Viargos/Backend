@@ -57,6 +57,9 @@ export class JourneySummaryDto {
   @ApiProperty({ description: 'Journey description' })
   description: string;
 
+  @ApiProperty({ description: 'Journey cover image URL' })
+  coverImage: string;
+
   @ApiProperty({ description: 'Number of days in journey' })
   daysCount: number;
 
@@ -64,6 +67,7 @@ export class JourneySummaryDto {
     this.id = journey.id;
     this.title = journey.title;
     this.description = journey.description;
+    this.coverImage = journey.coverImage;
     this.daysCount = journey.days?.length || 0;
   }
 }

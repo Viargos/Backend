@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { JourneyRepository } from './journey.repository';
 import { Journey } from './entities/journey.entity';
 import { CreateJourneyDto } from './dto/create-journey.dto';
+import { UpdateJourneyDto } from './dto/update-journey.dto';
 
 @Injectable()
 export class JourneyService {
@@ -29,7 +30,7 @@ export class JourneyService {
 
   async update(
     id: string,
-    updateJourneyDto: CreateJourneyDto,
+    updateJourneyDto: UpdateJourneyDto,
   ): Promise<Journey> {
     const journey = await this.journeyRepository.findOneById(id);
     if (!journey) {

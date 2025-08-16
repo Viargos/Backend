@@ -1,0 +1,111 @@
+{
+  "title": "A Wonderful Trip to Paris",
+  "description": "An exciting 2-day itinerary exploring the best of Paris, from iconic landmarks to charming neighborhoods.",
+  "coverImage": "https://example.com/paris-cover.jpg",
+  "days": [
+    {
+      "dayNumber": 1,
+      "date": "2025-08-15T00:00:00.000Z",
+      "notes": "First day in Paris! Focus on seeing the main sights and enjoying the local food.",
+      "places": [
+        {
+          "type": "TRANSPORT",
+          "name": "Arrive at Charles de Gaulle Airport (CDG)",
+          "description": "Flight UA 23 from SFO.",
+          "address": "95700 Roissy-en-France, France",
+          "latitude": 49.0097,
+          "longitude": 2.5479,
+          "startTime": "09:00",
+          "endTime": "09:30"
+        },
+        {
+          "type": "STAY",
+          "name": "Check-in at Hotel Le Meurice",
+          "description": "Drop off luggage and freshen up before heading out.",
+          "address": "228 Rue de Rivoli, 75001 Paris, France",
+          "latitude": 48.8659,
+          "longitude": 2.3281,
+          "startTime": "11:00",
+          "endTime": "12:00"
+        },
+        {
+          "type": "FOOD",
+          "name": "Lunch at Le Bouillon Chartier",
+          "description": "Experience a classic Parisian bouillon with traditional French dishes.",
+          "address": "7 Rue du Faubourg Montmartre, 75009 Paris, France",
+          "latitude": 48.8708,
+          "longitude": 2.3434,
+          "startTime": "12:30",
+          "endTime": "14:00"
+        },
+        {
+          "type": "ACTIVITY",
+          "name": "Visit the Eiffel Tower",
+          "description": "Tickets are pre-booked for the summit. Be there 15 minutes early.",
+          "address": "Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France",
+          "latitude": 48.8566,
+          "longitude": 2.2944,
+          "startTime": "15:00",
+          "endTime": "17:00"
+        },
+        {
+          "type": "FOOD",
+          "name": "Dinner Cruise on the Seine",
+          "description": "Enjoy a scenic dinner with Bateaux Parisiens.",
+          "address": "Port de la Bourdonnais, 75007 Paris, France",
+          "latitude": 48.8606,
+          "longitude": 2.2946,
+          "startTime": "19:30",
+          "endTime": "21:30"
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "date": "2025-08-16T00:00:00.000Z",
+      "notes": "Day of art and exploration. Wear comfortable shoes for walking in Montmartre.",
+      "places": [
+        {
+          "type": "ACTIVITY",
+          "name": "Explore the Louvre Museum",
+          "description": "Focus on the Denon wing to see the Mona Lisa and other masterpieces.",
+          "address": "Rue de Rivoli, 75001 Paris, France",
+          "latitude": 48.8606,
+          "longitude": 2.3376,
+          "startTime": "10:00",
+          "endTime": "13:00"
+        },
+        {
+          "type": "FOOD",
+          "name": "Lunch near the Louvre",
+          "description": "Find a local cafe for a quick bite.",
+          "address": "Place du Louvre, 75001 Paris, France",
+          "latitude": 48.8600,
+          "longitude": 2.3370,
+          "startTime": "13:00",
+          "endTime": "14:00"
+        },
+        {
+          "type": "ACTIVITY",
+          "name": "Walk through Montmartre and visit Sacré-Cœur",
+          "description": "Explore the artistic neighborhood and enjoy the panoramic views from the basilica.",
+          "address": "35 Rue du Chevalier de la Barre, 75018 Paris, France",
+          "latitude": 48.8867,
+          "longitude": 2.3431,
+          "startTime": "15:00",
+          "endTime": "17:00"
+        },
+        {
+          "type": "TRANSPORT",
+          "name": "Depart from Gare du Nord",
+          "description": "Train to London.",
+          "address": "18 Rue de Dunkerque, 75010 Paris, France",
+          "latitude": 48.8809,
+          "longitude": 2.3553,
+          "startTime": "18:30",
+          "endTime": "19:00"
+        }
+      ]
+    }
+  ]
+}

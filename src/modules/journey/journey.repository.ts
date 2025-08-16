@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Journey } from './entities/journey.entity';
 import { CreateJourneyDto } from './dto/create-journey.dto';
+import { UpdateJourneyDto } from './dto/update-journey.dto';
 
 @Injectable()
 export class JourneyRepository {
@@ -36,7 +37,7 @@ export class JourneyRepository {
 
   async updateJourney(
     id: string,
-    updateJourneyDto: CreateJourneyDto,
+    updateJourneyDto: UpdateJourneyDto,
   ): Promise<Journey> {
     await this.journeyRepo.update(id, updateJourneyDto);
     return this.findOneById(id);

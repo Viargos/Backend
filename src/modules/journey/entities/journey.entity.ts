@@ -19,6 +19,9 @@ export class Journey {
   @Column({ nullable: true })
   description: string;
 
+  @Column({ nullable: true })
+  coverImage: string;
+
   @ManyToOne(() => User, (user) => user.journeys)
   user: User;
 

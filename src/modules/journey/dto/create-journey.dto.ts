@@ -15,6 +15,11 @@ export class CreateJourneyDto {
   @IsOptional()
   description?: string;
 
+  @ApiProperty({ required: false, description: 'Cover image URL for the journey' })
+  @IsString()
+  @IsOptional()
+  coverImage?: string;
+
   @ApiProperty({ type: [CreateJourneyDayDto] })
   @ValidateNested({ each: true })
   @Type(() => CreateJourneyDayDto)

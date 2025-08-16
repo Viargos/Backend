@@ -31,6 +31,15 @@ export class JourneyDayPlace {
   @Column({ nullable: true })
   description: string;
 
+  @Column({ nullable: true })
+  address: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
+  latitude: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
+  longitude: number;
+
   @Column({ type: 'time', nullable: true })
   startTime: string;
 

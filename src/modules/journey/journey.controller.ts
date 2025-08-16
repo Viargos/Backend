@@ -19,6 +19,7 @@ import { JourneyService } from './journey.service';
 import { Journey } from './entities/journey.entity';
 import { JwtAuthGuard } from 'src/security/jwt-auth.guard';
 import { CreateJourneyDto } from './dto/create-journey.dto';
+import { UpdateJourneyDto } from './dto/update-journey.dto';
 
 @ApiTags('journeys')
 @Controller('journeys')
@@ -84,7 +85,7 @@ export class JourneyController {
   })
   update(
     @Param('id') id: string,
-    @Body() updateJourneyDto: CreateJourneyDto,
+    @Body() updateJourneyDto: UpdateJourneyDto,
   ): Promise<Journey> {
     return this.journeyService.update(id, updateJourneyDto);
   }
