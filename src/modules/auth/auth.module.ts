@@ -23,7 +23,7 @@ import { join } from 'path';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: '15m',
+          expiresIn: '10d',
         },
       }),
       inject: [ConfigService],

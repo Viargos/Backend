@@ -20,6 +20,7 @@ import { UserDto } from './dto/user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UploadImageResponseDto } from './dto/upload-image.dto';
+import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -71,6 +72,17 @@ export class UserController {
 
     // Return the direct S3 URL since images are now public
     return { imageUrl: user.bannerImage };
+  }
+
+  @Get('profile/me')
+  @ApiOperation({
+    summary: 'Get comprehensive user profile',
+    description: 'Returns detailed user profile with followers, following, posts, journeys and statistics'
+  })
+  async getComprehensiveProfile(
+    @Request() req: { user: User }
+  ): Promise<UserProfileResponseDto> {
+    return await this.userService.getUserProfile(req.user.id);
   }
 
   @Get(':id')

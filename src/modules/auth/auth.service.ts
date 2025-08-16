@@ -54,14 +54,16 @@ export class AuthService {
 
       // Build errors object
       const errors: Record<string, string> = {};
-      if (emailExists) errors.email = 'Email already exists';
-      if (usernameExists) errors.username = 'Username already exists';
-      if (phoneExists) errors.phoneNumber = 'Phone number already exists';
+      if (emailExists) errors.email = `Email '${email}' already exists`;
+      if (usernameExists) errors.username = `Username '${username}' already exists`;
+      if (phoneExists) errors.phoneNumber = `Phone number '${phoneNumber}' already exists`;
 
       // If any errors exist, throw them
       if (Object.keys(errors).length > 0) {
+        // Create message with error values separated by dots
+        const errorValues = Object.values(errors).join('. ');
         throw new BadRequestException({
-          message: 'Validation failed',
+          message: `Validation failed: ${errorValues}`,
           errors,
         });
       }
@@ -162,26 +164,30 @@ export class AuthService {
       // Mark OTP as used
       await this.userOtpRepository.markOtpAsUsed(userOtp.id);
 
+      // Generate access token for both email verification and password reset
+      const payload = {
+        email: user.email,
+        id: user.id,
+        purpose: user.isActive ? 'password_reset' : 'login',
+      };
+      
+      const expiresIn = user.isActive ? '15m' : '7d'; // Short-lived for password reset, longer for login
+      const accessToken = this.jwtService.sign(payload, {
+        expiresIn,
+      });
+
       // If this is email verification, activate the account
       if (!user.isActive) {
         await this.userRepository.updateUser(user.id, {
           isActive: true,
         });
-        return { message: 'Email verified successfully' };
+        return { 
+          message: 'Email verified successfully',
+          accessToken,
+        };
       }
 
-      // If this is password reset verification, generate and return token
-      const payload = {
-        email: user.email,
-        id: user.id,
-        purpose: 'password_reset',
-      };
-      const expiresIn =
-        this.configService.get<AuthKeyConfig>(AuthKeyConfigName);
-      const accessToken = this.jwtService.sign(payload, {
-        expiresIn: '15m', // Short-lived token for password reset
-      });
-
+      // If this is password reset verification, return token
       return {
         message: 'OTP verified successfully',
         accessToken,

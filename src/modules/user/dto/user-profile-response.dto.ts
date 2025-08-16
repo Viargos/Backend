@@ -1,0 +1,105 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { UserDto } from './user.dto';
+import { Post } from '../../post/entities/post.entity';
+import { Journey } from '../../journey/entities/journey.entity';
+import { User } from '../entities/user.entity';
+
+export class UserStatsDto {
+  @ApiProperty({ description: 'Total number of followers' })
+  followersCount: number;
+
+  @ApiProperty({ description: 'Total number of users following' })
+  followingCount: number;
+
+  @ApiProperty({ description: 'Total number of posts' })
+  postsCount: number;
+
+  @ApiProperty({ description: 'Total number of journeys' })
+  journeysCount: number;
+}
+
+export class PostSummaryDto {
+  @ApiProperty({ description: 'Post ID' })
+  id: string;
+
+  @ApiProperty({ description: 'Post description' })
+  description: string;
+
+  @ApiProperty({ description: 'Number of likes' })
+  likeCount: number;
+
+  @ApiProperty({ description: 'Number of comments' })
+  commentCount: number;
+
+  @ApiProperty({ description: 'Post creation date' })
+  createdAt: Date;
+
+  @ApiProperty({ description: 'Post media URLs', type: [String] })
+  mediaUrls: string[];
+
+  constructor(post: Post) {
+    this.id = post.id;
+    this.description = post.description;
+    this.likeCount = post.likeCount;
+    this.commentCount = post.commentCount;
+    this.createdAt = post.createdAt;
+    this.mediaUrls = post.media?.map(media => media.url) || [];
+  }
+}
+
+export class JourneySummaryDto {
+  @ApiProperty({ description: 'Journey ID' })
+  id: string;
+
+  @ApiProperty({ description: 'Journey title' })
+  title: string;
+
+  @ApiProperty({ description: 'Journey description' })
+  description: string;
+
+  @ApiProperty({ description: 'Number of days in journey' })
+  daysCount: number;
+
+  constructor(journey: Journey) {
+    this.id = journey.id;
+    this.title = journey.title;
+    this.description = journey.description;
+    this.daysCount = journey.days?.length || 0;
+  }
+}
+
+export class UserProfileResponseDto {
+  @ApiProperty({ description: 'User information' })
+  user: UserDto;
+
+  @ApiProperty({ description: 'User statistics' })
+  stats: UserStatsDto;
+
+  @ApiProperty({ description: 'Recent followers', type: [UserDto] })
+  recentFollowers: UserDto[];
+
+  @ApiProperty({ description: 'Recently followed users', type: [UserDto] })
+  recentFollowing: UserDto[];
+
+  @ApiProperty({ description: 'Recent posts', type: [PostSummaryDto] })
+  recentPosts: PostSummaryDto[];
+
+  @ApiProperty({ description: 'Recent journeys', type: [JourneySummaryDto] })
+  recentJourneys: JourneySummaryDto[];
+
+  constructor(
+    user: User,
+    stats: UserStatsDto,
+    recentFollowers: User[],
+    recentFollowing: User[],
+    recentPosts: Post[],
+    recentJourneys: Journey[]
+  ) {
+    this.user = new UserDto(user);
+    this.stats = stats;
+    this.recentFollowers = recentFollowers.map(follower => new UserDto(follower));
+    this.recentFollowing = recentFollowing.map(following => new UserDto(following));
+    this.recentPosts = recentPosts.map(post => new PostSummaryDto(post));
+    this.recentJourneys = recentJourneys.map(journey => new JourneySummaryDto(journey));
+  }
+}

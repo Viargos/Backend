@@ -45,4 +45,10 @@ export class JourneyRepository {
   async removeJourney(id: string): Promise<void> {
     await this.journeyRepo.delete(id);
   }
+
+  async getJourneyCountByUser(userId: string): Promise<number> {
+    return await this.journeyRepo.count({
+      where: { user: { id: userId } },
+    });
+  }
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -14,6 +14,8 @@ import { UserRelationshipRepository } from './user-relationship.repository';
 import { UserRelationshipService } from './user-relationship.service';
 import { UserRelationshipController } from './user-relationship.controller';
 import { S3Service } from './s3.service';
+import { PostModule } from '../post/post.module';
+import { JourneyModule } from '../journey/journey.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { S3Service } from './s3.service';
     MulterModule.register({
       storage: memoryStorage(),
     }),
+    forwardRef(() => PostModule),
+    forwardRef(() => JourneyModule),
   ],
   controllers: [UserController, UserRelationshipController],
   providers: [

@@ -11,5 +11,6 @@ import { JourneyRepository } from './journey.repository';
   imports: [TypeOrmModule.forFeature([Journey, JourneyDay, JourneyDayPlace])],
   controllers: [JourneyController],
   providers: [JourneyService, JourneyRepository],
+  exports: [JourneyService],
 })
 export class JourneyModule {}

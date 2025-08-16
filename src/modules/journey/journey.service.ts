@@ -45,4 +45,8 @@ export class JourneyService {
     }
     return this.journeyRepository.removeJourney(id);
   }
+
+  async getJourneyCountByUser(userId: string): Promise<number> {
+    return this.journeyRepository.getJourneyCountByUser(userId);
+  }
 }
