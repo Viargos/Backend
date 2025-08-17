@@ -4,6 +4,8 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { JourneyDay } from './journey-day.entity';
@@ -27,4 +29,10 @@ export class Journey {
 
   @OneToMany(() => JourneyDay, (day) => day.journey, { cascade: true })
   days: JourneyDay[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

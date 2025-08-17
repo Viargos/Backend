@@ -63,12 +63,46 @@ export class JourneySummaryDto {
   @ApiProperty({ description: 'Number of days in journey' })
   daysCount: number;
 
+  @ApiProperty({ description: 'Journey creation date' })
+  createdAt: Date;
+
+  @ApiProperty({ description: 'Journey author information' })
+  author: {
+    id: string;
+    username: string;
+    profileImage?: string;
+  };
+
+  @ApiProperty({ description: 'First few places from the journey for preview', type: [String] })
+  previewPlaces: string[];
+
+  @ApiProperty({ description: 'Journey difficulty/type if available' })
+  type: string;
+
   constructor(journey: Journey) {
-    this.id = journey.id;
-    this.title = journey.title;
-    this.description = journey.description;
-    this.coverImage = journey.coverImage;
-    this.daysCount = journey.days?.length || 0;
+    this.id = journey?.id;
+    this.title = journey?.title;
+    this.description = journey?.description;
+    this.coverImage = journey?.coverImage;
+    this.daysCount = journey?.days?.length || 0;
+    this.createdAt = journey?.createdAt;
+    
+    // Author information
+    this.author = {
+      id: journey?.user?.id,
+      username: journey?.user?.username,
+      profileImage: journey?.user?.profileImage
+    };
+
+    // Extract first few place names for preview
+    this.previewPlaces = journey?.days
+      ?.slice(0, 2) // First 2 days
+      ?.flatMap(day => day?.places?.slice(0, 2)?.map(place => place?.name)) // First 2 places per day
+      ?.filter(Boolean) // Remove undefined/null values
+      ?.slice(0, 4) || []; // Maximum 4 places for preview
+
+    // Journey type based on first place type or default
+    this.type = journey?.days?.[0]?.places?.[0]?.type || 'ACTIVITY';
   }
 }
 

@@ -31,7 +31,8 @@ export class JourneyRepository {
   async findByUser(userId: string): Promise<Journey[]> {
     return await this.journeyRepo.find({
       where: { user: { id: userId } },
-      relations: ['days', 'days.places'],
+      relations: ['days', 'days.places', 'user'],
+      order: { createdAt: 'DESC' }, // Most recent first
     });
   }
 
