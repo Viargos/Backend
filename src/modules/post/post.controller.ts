@@ -82,10 +82,13 @@ export class PostController {
   })
   async getPostsByUser(
     @Param('userId') userId: string,
+    @Request() req,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
   ): Promise<PostEntity[]> {
-    return this.postService.getPostsByUser(userId, limit, offset);
+    // Handle "me" as current user
+    const targetUserId = userId === 'me' ? req.user.id : userId;
+    return this.postService.getPostsByUser(targetUserId, limit, offset);
   }
 
   @Get('user/:userId/count')
@@ -96,8 +99,11 @@ export class PostController {
   })
   async getPostCountByUser(
     @Param('userId') userId: string,
+    @Request() req,
   ): Promise<{ count: number }> {
-    const count = await this.postService.getPostCountByUser(userId);
+    // Handle "me" as current user
+    const targetUserId = userId === 'me' ? req.user.id : userId;
+    const count = await this.postService.getPostCountByUser(targetUserId);
     return { count };
   }
 
