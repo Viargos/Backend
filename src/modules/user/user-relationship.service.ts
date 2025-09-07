@@ -69,4 +69,20 @@ export class UserRelationshipService {
   async getFollowingCount(userId: string): Promise<number> {
     return this.userRelationshipRepo.getFollowingCount(userId);
   }
-} 
+
+  async getRelationshipStatus(currentUserId: string, targetUserId: string): Promise<{
+    isFollowing: boolean;
+    isFollowedBy: boolean;
+  }> {
+    if (!currentUserId || currentUserId === targetUserId) {
+      return { isFollowing: false, isFollowedBy: false };
+    }
+
+    const [isFollowing, isFollowedBy] = await Promise.all([
+      this.userRelationshipRepo.isFollowing(currentUserId, targetUserId),
+      this.userRelationshipRepo.isFollowing(targetUserId, currentUserId),
+    ]);
+
+    return { isFollowing, isFollowedBy };
+  }
+}

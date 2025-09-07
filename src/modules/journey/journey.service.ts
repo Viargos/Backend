@@ -3,6 +3,7 @@ import { JourneyRepository } from './journey.repository';
 import { Journey } from './entities/journey.entity';
 import { CreateJourneyDto } from './dto/create-journey.dto';
 import { UpdateJourneyDto } from './dto/update-journey.dto';
+import { NearbyJourneysDto } from './dto/nearby-journeys.dto';
 
 @Injectable()
 export class JourneyService {
@@ -49,5 +50,14 @@ export class JourneyService {
 
   async getJourneyCountByUser(userId: string): Promise<number> {
     return this.journeyRepository.getJourneyCountByUser(userId);
+  }
+
+  async findNearby(nearbyDto: NearbyJourneysDto): Promise<Journey[]> {
+    return this.journeyRepository.findNearbyJourneys(
+      nearbyDto.latitude,
+      nearbyDto.longitude,
+      nearbyDto.radius || 10,
+      nearbyDto.limit || 20,
+    );
   }
 }

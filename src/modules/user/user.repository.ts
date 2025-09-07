@@ -6,9 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere, Like, ILike } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { PostgresErrorCode } from 'src/utils/constants';
+import { SearchUserDto, SearchUserResult } from './dto/search-user.dto';
 
 @Injectable()
 export class UserRepository {
@@ -103,6 +104,140 @@ export class UserRepository {
       throw error instanceof NotFoundException
         ? error
         : new InternalServerErrorException(error.message);
+    }
+  }
+
+  async searchUsers(searchDto: SearchUserDto): Promise<SearchUserResult> {
+    try {
+      const {
+        search,
+        username,
+        email,
+        location,
+        isActive,
+        page = 1,
+        limit = 10,
+        sortBy = 'createdAt',
+        sortOrder = 'DESC'
+      } = searchDto;
+
+      const queryBuilder = this.userRepo.createQueryBuilder('user');
+
+      // Global search across multiple fields
+      if (search) {
+        queryBuilder.andWhere(
+          '(LOWER(user.username) LIKE LOWER(:search) OR ' +
+          'LOWER(user.email) LIKE LOWER(:search) OR ' +
+          'LOWER(user.bio) LIKE LOWER(:search) OR ' +
+          'LOWER(user.location) LIKE LOWER(:search))',
+          { search: `%${search}%` }
+        );
+      }
+
+      // Specific field filters
+      if (username) {
+        queryBuilder.andWhere('LOWER(user.username) LIKE LOWER(:username)', {
+          username: `%${username}%`
+        });
+      }
+
+      if (email) {
+        queryBuilder.andWhere('LOWER(user.email) LIKE LOWER(:email)', {
+          email: `%${email}%`
+        });
+      }
+
+      if (location) {
+        queryBuilder.andWhere('LOWER(user.location) LIKE LOWER(:location)', {
+          location: `%${location}%`
+        });
+      }
+
+      if (typeof isActive === 'boolean') {
+        queryBuilder.andWhere('user.isActive = :isActive', { isActive });
+      }
+
+      // Exclude password field from results
+      queryBuilder.select([
+        'user.id',
+        'user.username',
+        'user.email',
+        'user.phoneNumber',
+        'user.bio',
+        'user.profileImage',
+        'user.bannerImage',
+        'user.location',
+        'user.isActive',
+        'user.createdAt',
+        'user.updatedAt'
+      ]);
+
+      // Sorting
+      queryBuilder.orderBy(`user.${sortBy}`, sortOrder);
+
+      // Get total count before applying pagination
+      const total = await queryBuilder.getCount();
+
+      // Apply pagination
+      const offset = (page - 1) * limit;
+      queryBuilder.skip(offset).take(limit);
+
+      // Execute query
+      const users = await queryBuilder.getMany();
+
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        users,
+        total,
+        page,
+        limit,
+        totalPages
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to search users with params: ${JSON.stringify(searchDto)}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async searchUsersByTerm(searchTerm: string, limit: number = 10): Promise<User[]> {
+    try {
+      const queryBuilder = this.userRepo.createQueryBuilder('user');
+      
+      queryBuilder
+        .where(
+          '(LOWER(user.username) LIKE LOWER(:searchTerm) OR ' +
+          'LOWER(user.email) LIKE LOWER(:searchTerm) OR ' +
+          'LOWER(user.bio) LIKE LOWER(:searchTerm) OR ' +
+          'LOWER(user.location) LIKE LOWER(:searchTerm))',
+          { searchTerm: `%${searchTerm}%` }
+        )
+        .select([
+          'user.id',
+          'user.username',
+          'user.email',
+          'user.phoneNumber',
+          'user.bio',
+          'user.profileImage',
+          'user.bannerImage',
+          'user.location',
+          'user.isActive',
+          'user.createdAt',
+          'user.updatedAt'
+        ])
+        .orderBy('user.createdAt', 'DESC')
+        .limit(limit);
+
+      return await queryBuilder.getMany();
+    } catch (error) {
+      this.logger.error(
+        `Failed to search users by term: ${searchTerm}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(error.message);
     }
   }
 

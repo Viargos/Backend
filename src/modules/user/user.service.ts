@@ -6,6 +6,7 @@ import { UserRelationshipService } from './user-relationship.service';
 import { PostService } from '../post/post.service';
 import { JourneyService } from '../journey/journey.service';
 import { UserProfileResponseDto, UserStatsDto } from './dto/user-profile-response.dto';
+import { SearchUserDto, SearchUserResult } from './dto/search-user.dto';
 
 @Injectable()
 export class UserService {
@@ -97,19 +98,20 @@ export class UserService {
     return this.s3Service.getSignedUrl(fileKey);
   }
 
-  async getUserProfile(userId: string): Promise<UserProfileResponseDto> {
+  async getUserProfile(userId: string, currentUserId?: string): Promise<UserProfileResponseDto> {
     // Get user details
     const user = await this.userRepository.getUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Get all counts in parallel for better performance
-    const [followersCount, followingCount, postsCount, journeysCount] = await Promise.all([
+    // Get all counts and relationship status in parallel for better performance
+    const [followersCount, followingCount, postsCount, journeysCount, relationshipStatus] = await Promise.all([
       this.userRelationshipService.getFollowerCount(userId),
       this.userRelationshipService.getFollowingCount(userId),
       this.postService.getPostCountByUser(userId),
       this.journeyService.getJourneyCountByUser(userId),
+      currentUserId ? this.userRelationshipService.getRelationshipStatus(currentUserId, userId) : Promise.resolve({ isFollowing: false, isFollowedBy: false })
     ]);
 
     // Create stats object
@@ -132,10 +134,19 @@ export class UserService {
     return new UserProfileResponseDto(
       user,
       stats,
+      relationshipStatus,
       recentFollowers.slice(0, 5), // Latest 5 followers
       recentFollowing.slice(0, 5), // Latest 5 following
       recentPosts,
       recentJourneys.slice(0, 5) // Latest 5 journeys
     );
+  }
+
+  async searchUsers(searchDto: SearchUserDto): Promise<SearchUserResult> {
+    return this.userRepository.searchUsers(searchDto);
+  }
+
+  async searchUsersByTerm(searchTerm: string, limit: number = 10): Promise<User[]> {
+    return this.userRepository.searchUsersByTerm(searchTerm, limit);
   }
 }

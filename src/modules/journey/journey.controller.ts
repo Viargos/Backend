@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +21,7 @@ import { Journey } from './entities/journey.entity';
 import { JwtAuthGuard } from 'src/security/jwt-auth.guard';
 import { CreateJourneyDto } from './dto/create-journey.dto';
 import { UpdateJourneyDto } from './dto/update-journey.dto';
+import { NearbyJourneysDto } from './dto/nearby-journeys.dto';
 
 @ApiTags('journeys')
 @Controller('journeys')
@@ -63,6 +65,24 @@ export class JourneyController {
   })
   findMyJourneys(@Request() req): Promise<Journey[]> {
     return this.journeyService.findByUser(req.user.id);
+  }
+
+  @Get('nearby')
+  @ApiOperation({ 
+    summary: 'Find journeys nearby a specific location',
+    description: 'Search for journeys within a specified radius from given coordinates. Useful for discovering journeys in a specific area.'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nearby journeys retrieved successfully',
+    type: [Journey],
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid coordinates or radius provided',
+  })
+  findNearbyJourneys(@Query() nearbyDto: NearbyJourneysDto): Promise<Journey[]> {
+    return this.journeyService.findNearby(nearbyDto);
   }
 
   @Get(':id')

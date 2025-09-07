@@ -18,6 +18,14 @@ export class UserStatsDto {
   journeysCount: number;
 }
 
+export class RelationshipStatusDto {
+  @ApiProperty({ description: 'Whether current user is following this user' })
+  isFollowing: boolean;
+
+  @ApiProperty({ description: 'Whether this user is following current user back' })
+  isFollowedBy: boolean;
+}
+
 export class PostSummaryDto {
   @ApiProperty({ description: 'Post ID' })
   id: string;
@@ -113,6 +121,9 @@ export class UserProfileResponseDto {
   @ApiProperty({ description: 'User statistics' })
   stats: UserStatsDto;
 
+  @ApiProperty({ description: 'Relationship status with current user' })
+  relationshipStatus: RelationshipStatusDto;
+
   @ApiProperty({ description: 'Recent followers', type: [UserDto] })
   recentFollowers: UserDto[];
 
@@ -128,6 +139,7 @@ export class UserProfileResponseDto {
   constructor(
     user: User,
     stats: UserStatsDto,
+    relationshipStatus: RelationshipStatusDto,
     recentFollowers: User[],
     recentFollowing: User[],
     recentPosts: Post[],
@@ -135,6 +147,7 @@ export class UserProfileResponseDto {
   ) {
     this.user = new UserDto(user);
     this.stats = stats;
+    this.relationshipStatus = relationshipStatus;
     this.recentFollowers = recentFollowers.map(follower => new UserDto(follower));
     this.recentFollowing = recentFollowing.map(following => new UserDto(following));
     this.recentPosts = recentPosts.map(post => new PostSummaryDto(post));
