@@ -6,6 +6,7 @@ import { PostMedia } from './entities/post-media.entity';
 import { PostLike } from './entities/post-like.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { AddMediaDto } from './dto/add-media.dto';
+import { CreatePostDto } from './dto/create-post.dto';
 import { User } from '../user/entities/user.entity';
 
 @Injectable()
@@ -23,10 +24,14 @@ export class PostRepository {
     private readonly postCommentRepo: Repository<PostComment>,
   ) {}
 
-  async createPost(user: User, description: string): Promise<Post> {
+  async createPost(user: User, createPostDto: CreatePostDto): Promise<Post> {
     const post = this.postRepo.create({
       user,
-      description,
+      description: createPostDto.description,
+      journeyId: createPostDto.journeyId,
+      location: createPostDto.location,
+      latitude: createPostDto.latitude,
+      longitude: createPostDto.longitude,
       likeCount: 0,
       commentCount: 0,
     });
@@ -51,7 +56,7 @@ export class PostRepository {
   async getPostById(postId: string): Promise<Post> {
     return await this.postRepo.findOne({
       where: { id: postId },
-      relations: ['user', 'media', 'likes', 'comments'],
+      relations: ['user', 'media', 'likes', 'comments', 'journey'],
     });
   }
 
@@ -62,7 +67,7 @@ export class PostRepository {
   ): Promise<Post[]> {
     return await this.postRepo.find({
       where: { user: { id: userId } },
-      relations: ['user', 'media', 'likes', 'comments'],
+      relations: ['user', 'media', 'likes', 'comments', 'journey'],
       order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,

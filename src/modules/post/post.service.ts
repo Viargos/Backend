@@ -10,13 +10,17 @@ import { Post } from './entities/post.entity';
 import { PostMedia } from './entities/post-media.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { User } from '../user/entities/user.entity';
+import { S3Service } from '../user/s3.service';
 
 @Injectable()
 export class PostService {
-  constructor(private readonly postRepository: PostRepository) {}
+  constructor(
+    private readonly postRepository: PostRepository,
+    private readonly s3Service: S3Service,
+  ) {}
 
   async createPost(user: User, createPostDto: CreatePostDto): Promise<Post> {
-    return this.postRepository.createPost(user, createPostDto.description);
+    return this.postRepository.createPost(user, createPostDto);
   }
 
   async addMediaToPost(
@@ -130,5 +134,10 @@ export class PostService {
     offset: number = 0,
   ): Promise<PostComment[]> {
     return this.postRepository.getReplies(commentId, limit, offset);
+  }
+
+  async uploadPostMedia(userId: string, file: any): Promise<string> {
+    // Upload to S3 using the same pattern as profile images
+    return await this.s3Service.uploadFile(file, 'posts', userId);
   }
 }

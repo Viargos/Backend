@@ -1,9 +1,18 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn, CreateDateColumn, UpdateDateColumn, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { Journey } from '../../journey/entities/journey.entity';
 import { PostMedia } from './post-media.entity';
 import { PostLike } from './post-like.entity';
 import { PostComment } from './post-comment.entity';
-
 
 @Entity('posts')
 export class Post {
@@ -19,6 +28,20 @@ export class Post {
   @Column({ default: 0 })
   commentCount: number;
 
+  // Journey linking (optional)
+  @Column({ name: 'journey_id', nullable: true })
+  journeyId?: string;
+
+  // Location fields for standalone posts
+  @Column({ nullable: true })
+  location?: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 8, nullable: true })
+  latitude?: number;
+
+  @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
+  longitude?: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -29,12 +52,16 @@ export class Post {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @OneToMany(() => PostMedia, media => media.post)
+  @ManyToOne(() => Journey, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'journey_id' })
+  journey?: Journey;
+
+  @OneToMany(() => PostMedia, (media) => media.post)
   media: PostMedia[];
 
-  @OneToMany(() => PostLike, like => like.post)
+  @OneToMany(() => PostLike, (like) => like.post)
   likes: PostLike[];
 
-  @OneToMany(() => PostComment, comment => comment.post)
+  @OneToMany(() => PostComment, (comment) => comment.post)
   comments: PostComment[];
-} 
+}

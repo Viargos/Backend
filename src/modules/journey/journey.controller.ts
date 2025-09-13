@@ -63,14 +63,20 @@ export class JourneyController {
     description: 'User journeys retrieved successfully',
     type: [Journey],
   })
-  findMyJourneys(@Request() req): Promise<Journey[]> {
-    return this.journeyService.findByUser(req.user.id);
+  async findMyJourneys(@Request() req) {
+    const journeys = await this.journeyService.findByUser(req.user.id);
+    return {
+      statusCode: 200,
+      message: 'User journeys retrieved successfully',
+      data: journeys,
+    };
   }
 
   @Get('nearby')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Find journeys nearby a specific location',
-    description: 'Search for journeys within a specified radius from given coordinates. Useful for discovering journeys in a specific area.'
+    description:
+      'Search for journeys within a specified radius from given coordinates. Useful for discovering journeys in a specific area.',
   })
   @ApiResponse({
     status: 200,
@@ -81,7 +87,9 @@ export class JourneyController {
     status: 400,
     description: 'Invalid coordinates or radius provided',
   })
-  findNearbyJourneys(@Query() nearbyDto: NearbyJourneysDto): Promise<Journey[]> {
+  findNearbyJourneys(
+    @Query() nearbyDto: NearbyJourneysDto,
+  ): Promise<Journey[]> {
     return this.journeyService.findNearby(nearbyDto);
   }
 

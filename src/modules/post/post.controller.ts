@@ -10,7 +10,11 @@ import {
   UseGuards,
   Request,
   Post,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes } from '@nestjs/swagger';
 import {
   ApiTags,
   ApiOperation,
@@ -60,6 +64,29 @@ export class PostController {
     @Body() addMediaDto: AddMediaDto,
   ): Promise<PostMedia> {
     return this.postService.addMediaToPost(req.user, postId, addMediaDto);
+  }
+
+  @Post('media')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload media for posts' })
+  @ApiResponse({
+    status: 201,
+    description: 'Media uploaded successfully',
+  })
+  async uploadPostMedia(
+    @Request() req,
+    @UploadedFile() file: any,
+  ): Promise<{ imageUrl: string; message: string }> {
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
+
+    const imageUrl = await this.postService.uploadPostMedia(req.user.id, file);
+    return {
+      imageUrl,
+      message: 'Media uploaded successfully',
+    };
   }
 
   @Get(':postId')
