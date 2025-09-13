@@ -134,6 +134,44 @@ export class PostController {
     return { count };
   }
 
+  @Delete(':postId')
+  @ApiOperation({ summary: 'Delete a post' })
+  @ApiResponse({ status: 200, description: 'Post deleted successfully' })
+  async deletePost(
+    @Request() req,
+    @Param('postId') postId: string,
+  ): Promise<{ statusCode: number; message: string }> {
+    await this.postService.deletePost(postId, req.user);
+    return {
+      statusCode: 200,
+      message: 'Post deleted successfully',
+    };
+  }
+
+  @Patch(':postId')
+  @ApiOperation({ summary: 'Update a post' })
+  @ApiResponse({
+    status: 200,
+    description: 'Post updated successfully',
+    type: PostEntity,
+  })
+  async updatePost(
+    @Request() req,
+    @Param('postId') postId: string,
+    @Body() updatePostDto: CreatePostDto,
+  ): Promise<{ statusCode: number; message: string; data: PostEntity }> {
+    const updatedPost = await this.postService.updatePost(
+      postId,
+      req.user,
+      updatePostDto,
+    );
+    return {
+      statusCode: 200,
+      message: 'Post updated successfully',
+      data: updatedPost,
+    };
+  }
+
   @Post(':postId/like')
   @ApiOperation({ summary: 'Like a post' })
   @ApiResponse({ status: 200, description: 'Post liked successfully' })

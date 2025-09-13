@@ -60,6 +60,36 @@ export class PostService {
     return this.postRepository.getPostCountByUserId(userId);
   }
 
+  async deletePost(postId: string, user: User): Promise<void> {
+    const post = await this.postRepository.getPostById(postId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (post.user.id !== user.id) {
+      throw new BadRequestException('You can only delete your own posts');
+    }
+
+    await this.postRepository.deletePost(postId);
+  }
+
+  async updatePost(
+    postId: string,
+    user: User,
+    updatePostDto: CreatePostDto,
+  ): Promise<Post> {
+    const post = await this.postRepository.getPostById(postId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (post.user.id !== user.id) {
+      throw new BadRequestException('You can only update your own posts');
+    }
+
+    return this.postRepository.updatePost(postId, updatePostDto);
+  }
+
   async likePost(postId: string, user: User): Promise<void> {
     const post = await this.postRepository.getPostById(postId);
     if (!post) {

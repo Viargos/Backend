@@ -80,6 +80,35 @@ export class PostRepository {
     });
   }
 
+  async deletePost(postId: string): Promise<void> {
+    // Delete associated media first
+    await this.postMediaRepo.delete({ post: { id: postId } });
+
+    // Delete associated likes
+    await this.postLikeRepo.delete({ post: { id: postId } });
+
+    // Delete associated comments (including replies)
+    await this.postCommentRepo.delete({ post: { id: postId } });
+
+    // Finally delete the post
+    await this.postRepo.delete(postId);
+  }
+
+  async updatePost(
+    postId: string,
+    updatePostDto: CreatePostDto,
+  ): Promise<Post> {
+    await this.postRepo.update(postId, {
+      description: updatePostDto.description,
+      journeyId: updatePostDto.journeyId,
+      location: updatePostDto.location,
+      latitude: updatePostDto.latitude,
+      longitude: updatePostDto.longitude,
+    });
+
+    return this.getPostById(postId);
+  }
+
   async likePost(post: Post, user: User): Promise<void> {
     const existingLike = await this.postLikeRepo.findOne({
       where: { post: { id: post.id }, user: { id: user.id } },
