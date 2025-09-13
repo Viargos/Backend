@@ -60,6 +60,14 @@ export class PostRepository {
     });
   }
 
+  async getPublicPosts(limit: number = 10): Promise<Post[]> {
+    return await this.postRepo.find({
+      relations: ['user', 'media', 'likes', 'comments', 'journey'],
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
   async getPostsByUserId(
     userId: string,
     limit: number = 10,

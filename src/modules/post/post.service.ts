@@ -48,6 +48,10 @@ export class PostService {
     return post;
   }
 
+  async getPublicPosts(limit: number = 10): Promise<Post[]> {
+    return this.postRepository.getPublicPosts(limit);
+  }
+
   async getPostsByUser(
     userId: string,
     limit: number = 10,

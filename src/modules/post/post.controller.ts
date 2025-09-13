@@ -32,12 +32,12 @@ import { User } from '../user/entities/user.entity';
 
 @ApiTags('posts')
 @Controller('posts')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new post' })
   @ApiResponse({
     status: 201,
@@ -52,6 +52,8 @@ export class PostController {
   }
 
   @Post(':postId/media')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Add media to a post' })
   @ApiResponse({
     status: 201,
@@ -67,6 +69,8 @@ export class PostController {
   }
 
   @Post('media')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload media for posts' })
@@ -89,6 +93,24 @@ export class PostController {
     };
   }
 
+  @Get('public')
+  @ApiOperation({ summary: 'Get public posts for guest users' })
+  @ApiResponse({
+    status: 200,
+    description: 'Public posts retrieved successfully',
+    type: [PostEntity],
+  })
+  async getPublicPosts(
+    @Query('limit') limit?: number,
+  ): Promise<{ statusCode: number; message: string; data: PostEntity[] }> {
+    const posts = await this.postService.getPublicPosts(limit || 10);
+    return {
+      statusCode: 200,
+      message: 'Public posts retrieved successfully',
+      data: posts,
+    };
+  }
+
   @Get(':postId')
   @ApiOperation({ summary: 'Get a post by ID' })
   @ApiResponse({
@@ -101,6 +123,8 @@ export class PostController {
   }
 
   @Get('user/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get posts by user ID' })
   @ApiResponse({
     status: 200,
@@ -119,6 +143,8 @@ export class PostController {
   }
 
   @Get('user/:userId/count')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get post count by user ID' })
   @ApiResponse({
     status: 200,
@@ -135,6 +161,8 @@ export class PostController {
   }
 
   @Delete(':postId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a post' })
   @ApiResponse({ status: 200, description: 'Post deleted successfully' })
   async deletePost(
@@ -149,6 +177,8 @@ export class PostController {
   }
 
   @Patch(':postId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a post' })
   @ApiResponse({
     status: 200,
@@ -173,6 +203,8 @@ export class PostController {
   }
 
   @Post(':postId/like')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Like a post' })
   @ApiResponse({ status: 200, description: 'Post liked successfully' })
   async likePost(
@@ -183,6 +215,8 @@ export class PostController {
   }
 
   @Delete(':postId/like')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Unlike a post' })
   @ApiResponse({ status: 200, description: 'Post unliked successfully' })
   async unlikePost(
@@ -193,6 +227,8 @@ export class PostController {
   }
 
   @Post(':postId/comments')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Add a comment to a post' })
   @ApiResponse({
     status: 201,
@@ -209,6 +245,8 @@ export class PostController {
   }
 
   @Delete('comments/:commentId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a comment' })
   @ApiResponse({ status: 200, description: 'Comment deleted successfully' })
   async deleteComment(

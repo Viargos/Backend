@@ -87,10 +87,15 @@ export class JourneyController {
     status: 400,
     description: 'Invalid coordinates or radius provided',
   })
-  findNearbyJourneys(
+  async findNearbyJourneys(
     @Query() nearbyDto: NearbyJourneysDto,
-  ): Promise<Journey[]> {
-    return this.journeyService.findNearby(nearbyDto);
+  ): Promise<{ statusCode: number; message: string; data: Journey[] }> {
+    const journeys = await this.journeyService.findNearby(nearbyDto);
+    return {
+      statusCode: 200,
+      message: 'Nearby journeys retrieved successfully',
+      data: journeys,
+    };
   }
 
   @Get(':id')
