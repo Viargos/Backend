@@ -174,4 +174,39 @@ export class PostService {
     // Upload to S3 using the same pattern as profile images
     return await this.s3Service.uploadFile(file, 'posts', userId);
   }
+
+  async getDashboardPosts(
+    cursor?: string,
+    limit: number = 20,
+    location?: string,
+    search?: string,
+  ): Promise<{
+    posts: Post[];
+    hasMore: boolean;
+    nextCursor?: string;
+    totalCount: number;
+  }> {
+    return this.postRepository.getDashboardPosts(cursor, limit, location, search);
+  }
+
+  async getDashboardPostsWithUserLikes(
+    userId: string,
+    cursor?: string,
+    limit: number = 20,
+    location?: string,
+    search?: string,
+  ): Promise<{
+    posts: (Post & { isLikedByUser: boolean })[];
+    hasMore: boolean;
+    nextCursor?: string;
+    totalCount: number;
+  }> {
+    return this.postRepository.getDashboardPostsWithUserLikes(
+      userId,
+      cursor,
+      limit,
+      location,
+      search,
+    );
+  }
 }

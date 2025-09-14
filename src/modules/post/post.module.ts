@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { PostController } from './post.controller';
+import { DashboardController } from './dashboard.controller';
 import { PostService } from './post.service';
 import { PostRepository } from './post.repository';
 import { Post } from './entities/post.entity';
@@ -15,7 +16,7 @@ import { S3Service } from '../user/s3.service';
     TypeOrmModule.forFeature([Post, PostMedia, PostLike, PostComment]),
     ConfigModule,
   ],
-  controllers: [PostController],
+  controllers: [PostController, DashboardController],
   providers: [PostService, PostRepository, S3Service],
   exports: [PostService],
 })

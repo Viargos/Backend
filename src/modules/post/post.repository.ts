@@ -214,4 +214,190 @@ export class PostRepository {
       skip: offset,
     });
   }
+
+  async getDashboardPosts(
+    cursor?: string,
+    limit: number = 20,
+    location?: string,
+    search?: string,
+  ): Promise<{
+    posts: Post[];
+    hasMore: boolean;
+    nextCursor?: string;
+    totalCount: number;
+  }> {
+    let queryBuilder = this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.user', 'user')
+      .leftJoinAndSelect('post.media', 'media')
+      .leftJoinAndSelect('post.journey', 'journey')
+      .leftJoinAndSelect('post.likes', 'likes', 'likes.user = user.id')
+      .loadRelationCountAndMap('post.isLikedByUser', 'post.likes', 'likeAlias')
+      .orderBy('post.createdAt', 'DESC')
+      .addOrderBy('post.id', 'DESC'); // Add secondary sort for consistent pagination
+
+    // Apply cursor-based pagination
+    if (cursor) {
+      const cursorPost = await this.postRepo.findOne({ where: { id: cursor } });
+      if (cursorPost) {
+        queryBuilder = queryBuilder.andWhere(
+          '(post.createdAt < :cursorDate OR (post.createdAt = :cursorDate AND post.id < :cursorId))',
+          {
+            cursorDate: cursorPost.createdAt,
+            cursorId: cursor,
+          },
+        );
+      }
+    }
+
+    // Apply location filter
+    if (location) {
+      queryBuilder = queryBuilder.andWhere(
+        'post.location ILIKE :location',
+        { location: `%${location}%` },
+      );
+    }
+
+    // Apply search filter
+    if (search) {
+      queryBuilder = queryBuilder.andWhere(
+        'post.description ILIKE :search',
+        { search: `%${search}%` },
+      );
+    }
+
+    // Get posts with one extra to check if there are more
+    const posts = await queryBuilder.limit(limit + 1).getMany();
+
+    // Check if there are more posts
+    const hasMore = posts.length > limit;
+    if (hasMore) {
+      posts.pop(); // Remove the extra post
+    }
+
+    // Get total count for dashboard stats (optional, can be expensive for large datasets)
+    let totalCount = 0;
+    if (!cursor) {
+      // Only get total count on first request
+      const countQueryBuilder = this.postRepo.createQueryBuilder('post');
+      
+      if (location) {
+        countQueryBuilder.andWhere('post.location ILIKE :location', {
+          location: `%${location}%`,
+        });
+      }
+      
+      if (search) {
+        countQueryBuilder.andWhere('post.description ILIKE :search', {
+          search: `%${search}%`,
+        });
+      }
+      
+      totalCount = await countQueryBuilder.getCount();
+    }
+
+    return {
+      posts,
+      hasMore,
+      nextCursor: hasMore ? posts[posts.length - 1]?.id : undefined,
+      totalCount,
+    };
+  }
+
+  async getDashboardPostsWithUserLikes(
+    userId: string,
+    cursor?: string,
+    limit: number = 20,
+    location?: string,
+    search?: string,
+  ): Promise<{
+    posts: (Post & { isLikedByUser: boolean })[];
+    hasMore: boolean;
+    nextCursor?: string;
+    totalCount: number;
+  }> {
+    let queryBuilder = this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.user', 'user')
+      .leftJoinAndSelect('post.media', 'media')
+      .leftJoinAndSelect('post.journey', 'journey')
+      .leftJoin('post.likes', 'userLike', 'userLike.user.id = :userId', {
+        userId,
+      })
+      .addSelect('CASE WHEN userLike.id IS NOT NULL THEN true ELSE false END', 'isLikedByUser')
+      .orderBy('post.createdAt', 'DESC')
+      .addOrderBy('post.id', 'DESC');
+
+    // Apply cursor-based pagination
+    if (cursor) {
+      const cursorPost = await this.postRepo.findOne({ where: { id: cursor } });
+      if (cursorPost) {
+        queryBuilder = queryBuilder.andWhere(
+          '(post.createdAt < :cursorDate OR (post.createdAt = :cursorDate AND post.id < :cursorId))',
+          {
+            cursorDate: cursorPost.createdAt,
+            cursorId: cursor,
+          },
+        );
+      }
+    }
+
+    // Apply location filter
+    if (location) {
+      queryBuilder = queryBuilder.andWhere(
+        'post.location ILIKE :location',
+        { location: `%${location}%` },
+      );
+    }
+
+    // Apply search filter
+    if (search) {
+      queryBuilder = queryBuilder.andWhere(
+        'post.description ILIKE :search',
+        { search: `%${search}%` },
+      );
+    }
+
+    // Get posts with one extra to check if there are more
+    const rawResults = await queryBuilder.limit(limit + 1).getRawAndEntities();
+
+    // Map the results to include isLikedByUser
+    const postsWithLikes = rawResults.entities.map((post, index) => ({
+      ...post,
+      isLikedByUser: rawResults.raw[index]?.isLikedByUser === 'true' || rawResults.raw[index]?.isLikedByUser === true,
+    }));
+
+    // Check if there are more posts
+    const hasMore = postsWithLikes.length > limit;
+    if (hasMore) {
+      postsWithLikes.pop(); // Remove the extra post
+    }
+
+    // Get total count for dashboard stats (optional)
+    let totalCount = 0;
+    if (!cursor) {
+      const countQueryBuilder = this.postRepo.createQueryBuilder('post');
+      
+      if (location) {
+        countQueryBuilder.andWhere('post.location ILIKE :location', {
+          location: `%${location}%`,
+        });
+      }
+      
+      if (search) {
+        countQueryBuilder.andWhere('post.description ILIKE :search', {
+          search: `%${search}%`,
+        });
+      }
+      
+      totalCount = await countQueryBuilder.getCount();
+    }
+
+    return {
+      posts: postsWithLikes as (Post & { isLikedByUser: boolean })[],
+      hasMore,
+      nextCursor: hasMore ? postsWithLikes[postsWithLikes.length - 1]?.id : undefined,
+      totalCount,
+    };
+  }
 }

@@ -24,6 +24,7 @@ import {
 import { PostService } from './post.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { AddMediaDto } from './dto/add-media.dto';
+import { DashboardPostsDto } from './dto/dashboard-posts.dto';
 import { Post as PostEntity } from './entities/post.entity';
 import { PostMedia } from './entities/post-media.entity';
 import { PostComment } from './entities/post-comment.entity';
@@ -90,6 +91,64 @@ export class PostController {
     return {
       imageUrl,
       message: 'Media uploaded successfully',
+    };
+  }
+
+  @Get('dashboard')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ 
+    summary: 'Get dashboard posts with cursor-based pagination for infinite scroll',
+    description: 'Fetches posts for dashboard with pagination support. Use cursor for infinite scroll.' 
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard posts retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'Dashboard posts retrieved successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            posts: {
+              type: 'array',
+              items: { type: 'object' }
+            },
+            hasMore: { type: 'boolean', example: true },
+            nextCursor: { type: 'string', example: 'uuid-string' },
+            totalCount: { type: 'number', example: 150 }
+          }
+        }
+      }
+    }
+  })
+  async getDashboardPosts(
+    @Request() req,
+    @Query() query: DashboardPostsDto,
+  ): Promise<{
+    statusCode: number;
+    message: string;
+    data: {
+      posts: (PostEntity & { isLikedByUser?: boolean })[];
+      hasMore: boolean;
+      nextCursor?: string;
+      totalCount: number;
+    };
+  }> {
+    const result = await this.postService.getDashboardPostsWithUserLikes(
+      req.user.id,
+      query.cursor,
+      query.limit || 20,
+      query.location,
+      query.search,
+    );
+
+    return {
+      statusCode: 200,
+      message: 'Dashboard posts retrieved successfully',
+      data: result,
     };
   }
 
