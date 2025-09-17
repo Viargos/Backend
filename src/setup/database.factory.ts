@@ -9,30 +9,31 @@ export class DatabaseFactory implements TypeOrmOptionsFactory {
   constructor(private readonly configService: ConfigService) {}
 
   createTypeOrmOptions(): TypeOrmModuleOptions {
-    const dbConfig =
-      this.configService.getOrThrow<DatabaseConfig>(DatabaseConfigName);
-
-    const { user, host, port, name } = dbConfig;
-    const password = encodeURIComponent(dbConfig.password);
-
     const serverConfig =
       this.configService.getOrThrow<ServerConfig>(ServerConfigName);
 
     const isDevelopment = serverConfig.nodeEnv === 'development';
 
-    const uri = `postgres://${user}:${password}@${host}:${port}/${name}`;
-
-    Logger.debug(`Database URI: ${uri}`);
+    Logger.debug(`Configuring database connection for Neon`);
 
     return {
       type: 'postgres',
-      url: uri,
+      host: 'ep-damp-sky-aerflkll-pooler.c-2.us-east-2.aws.neon.tech',
+      port: 5432,
+      username: 'neondb_owner',
+      password: 'npg_u9Zy3taNKkYP',
+      database: 'neondb',
       entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-      synchronize: false, // Auto-sync DB in development (use migrations in production)
-      logging: isDevelopment, // Enable query logging in development mode
+      synchronize: false,
+      logging: isDevelopment,
+      ssl: {
+        rejectUnauthorized: false,
+      },
       extra: {
-        connectionTimeoutMillis: 60000, // 60s timeout for initial connection
-        idleTimeoutMillis: 45000, // 45s timeout for idle connections
+        max: 5, // Reduce connection pool size
+        min: 1,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 20000,
       },
     };
   }

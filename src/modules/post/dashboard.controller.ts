@@ -91,6 +91,7 @@ export class DashboardController {
           }
         }
       }
+    }
   })
   @ApiResponse({
     status: 401,
