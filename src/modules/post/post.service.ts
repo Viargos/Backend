@@ -186,7 +186,12 @@ export class PostService {
     nextCursor?: string;
     totalCount: number;
   }> {
-    return this.postRepository.getDashboardPosts(cursor, limit, location, search);
+    return this.postRepository.getDashboardPosts(
+      cursor,
+      limit,
+      location,
+      search,
+    );
   }
 
   async getDashboardPostsWithUserLikes(
@@ -196,7 +201,7 @@ export class PostService {
     location?: string,
     search?: string,
   ): Promise<{
-    posts: (Post & { isLikedByUser: boolean })[];
+    posts: (Post & { isLikedByCurrentUser: boolean })[];
     hasMore: boolean;
     nextCursor?: string;
     totalCount: number;

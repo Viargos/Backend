@@ -252,18 +252,16 @@ export class PostRepository {
 
     // Apply location filter
     if (location) {
-      queryBuilder = queryBuilder.andWhere(
-        'post.location ILIKE :location',
-        { location: `%${location}%` },
-      );
+      queryBuilder = queryBuilder.andWhere('post.location ILIKE :location', {
+        location: `%${location}%`,
+      });
     }
 
     // Apply search filter
     if (search) {
-      queryBuilder = queryBuilder.andWhere(
-        'post.description ILIKE :search',
-        { search: `%${search}%` },
-      );
+      queryBuilder = queryBuilder.andWhere('post.description ILIKE :search', {
+        search: `%${search}%`,
+      });
     }
 
     // Get posts with one extra to check if there are more
@@ -280,19 +278,19 @@ export class PostRepository {
     if (!cursor) {
       // Only get total count on first request
       const countQueryBuilder = this.postRepo.createQueryBuilder('post');
-      
+
       if (location) {
         countQueryBuilder.andWhere('post.location ILIKE :location', {
           location: `%${location}%`,
         });
       }
-      
+
       if (search) {
         countQueryBuilder.andWhere('post.description ILIKE :search', {
           search: `%${search}%`,
         });
       }
-      
+
       totalCount = await countQueryBuilder.getCount();
     }
 
@@ -311,7 +309,7 @@ export class PostRepository {
     location?: string,
     search?: string,
   ): Promise<{
-    posts: (Post & { isLikedByUser: boolean })[];
+    posts: (Post & { isLikedByCurrentUser: boolean })[];
     hasMore: boolean;
     nextCursor?: string;
     totalCount: number;
@@ -324,7 +322,10 @@ export class PostRepository {
       .leftJoin('post.likes', 'userLike', 'userLike.user.id = :userId', {
         userId,
       })
-      .addSelect('CASE WHEN userLike.id IS NOT NULL THEN true ELSE false END', 'isLikedByUser')
+      .addSelect(
+        'CASE WHEN userLike.id IS NOT NULL THEN true ELSE false END',
+        'isLikedByCurrentUser',
+      )
       .orderBy('post.createdAt', 'DESC')
       .addOrderBy('post.id', 'DESC');
 
@@ -344,27 +345,27 @@ export class PostRepository {
 
     // Apply location filter
     if (location) {
-      queryBuilder = queryBuilder.andWhere(
-        'post.location ILIKE :location',
-        { location: `%${location}%` },
-      );
+      queryBuilder = queryBuilder.andWhere('post.location ILIKE :location', {
+        location: `%${location}%`,
+      });
     }
 
     // Apply search filter
     if (search) {
-      queryBuilder = queryBuilder.andWhere(
-        'post.description ILIKE :search',
-        { search: `%${search}%` },
-      );
+      queryBuilder = queryBuilder.andWhere('post.description ILIKE :search', {
+        search: `%${search}%`,
+      });
     }
 
     // Get posts with one extra to check if there are more
     const rawResults = await queryBuilder.limit(limit + 1).getRawAndEntities();
 
-    // Map the results to include isLikedByUser
+    // Map the results to include isLikedByCurrentUser
     const postsWithLikes = rawResults.entities.map((post, index) => ({
       ...post,
-      isLikedByUser: rawResults.raw[index]?.isLikedByUser === 'true' || rawResults.raw[index]?.isLikedByUser === true,
+      isLikedByCurrentUser:
+        rawResults.raw[index]?.isLikedByCurrentUser === 'true' ||
+        rawResults.raw[index]?.isLikedByCurrentUser === true,
     }));
 
     // Check if there are more posts
@@ -377,26 +378,28 @@ export class PostRepository {
     let totalCount = 0;
     if (!cursor) {
       const countQueryBuilder = this.postRepo.createQueryBuilder('post');
-      
+
       if (location) {
         countQueryBuilder.andWhere('post.location ILIKE :location', {
           location: `%${location}%`,
         });
       }
-      
+
       if (search) {
         countQueryBuilder.andWhere('post.description ILIKE :search', {
           search: `%${search}%`,
         });
       }
-      
+
       totalCount = await countQueryBuilder.getCount();
     }
 
     return {
-      posts: postsWithLikes as (Post & { isLikedByUser: boolean })[],
+      posts: postsWithLikes as (Post & { isLikedByCurrentUser: boolean })[],
       hasMore,
-      nextCursor: hasMore ? postsWithLikes[postsWithLikes.length - 1]?.id : undefined,
+      nextCursor: hasMore
+        ? postsWithLikes[postsWithLikes.length - 1]?.id
+        : undefined,
       totalCount,
     };
   }

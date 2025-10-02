@@ -97,9 +97,11 @@ export class PostController {
   @Get('dashboard')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ 
-    summary: 'Get dashboard posts with cursor-based pagination for infinite scroll',
-    description: 'Fetches posts for dashboard with pagination support. Use cursor for infinite scroll.' 
+  @ApiOperation({
+    summary:
+      'Get dashboard posts with cursor-based pagination for infinite scroll',
+    description:
+      'Fetches posts for dashboard with pagination support. Use cursor for infinite scroll.',
   })
   @ApiResponse({
     status: 200,
@@ -108,21 +110,24 @@ export class PostController {
       type: 'object',
       properties: {
         statusCode: { type: 'number', example: 200 },
-        message: { type: 'string', example: 'Dashboard posts retrieved successfully' },
+        message: {
+          type: 'string',
+          example: 'Dashboard posts retrieved successfully',
+        },
         data: {
           type: 'object',
           properties: {
             posts: {
               type: 'array',
-              items: { type: 'object' }
+              items: { type: 'object' },
             },
             hasMore: { type: 'boolean', example: true },
             nextCursor: { type: 'string', example: 'uuid-string' },
-            totalCount: { type: 'number', example: 150 }
-          }
-        }
-      }
-    }
+            totalCount: { type: 'number', example: 150 },
+          },
+        },
+      },
+    },
   })
   async getDashboardPosts(
     @Request() req,
@@ -131,7 +136,7 @@ export class PostController {
     statusCode: number;
     message: string;
     data: {
-      posts: (PostEntity & { isLikedByUser?: boolean })[];
+      posts: (PostEntity & { isLikedByCurrentUser?: boolean })[];
       hasMore: boolean;
       nextCursor?: string;
       totalCount: number;
