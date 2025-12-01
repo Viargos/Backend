@@ -17,9 +17,9 @@ export class S3Service {
   constructor(private configService: ConfigService) {
     this.s3Client = new S3Client({
       credentials: {
-        accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID'),
+        accessKeyId: this.configService.get<string>('VIARGOS_AWS_ACCESS_KEY_ID'),
         secretAccessKey: this.configService.get<string>(
-          'AWS_SECRET_ACCESS_KEY',
+          'VIARGOS_AWS_SECRET_ACCESS_KEY',
         ),
       },
       region: this.configService.get<string>('AWS_REGION'),
