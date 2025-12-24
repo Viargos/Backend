@@ -102,7 +102,7 @@ StringUtil.generateOTP(6)                 // "123456"
 
 #### Crypto Utilities
 ```typescript
-await CryptoUtil.hashPassword(password)
+await CryptoUtil.hashPassword(password) 
 await CryptoUtil.comparePassword(password, hash)
 CryptoUtil.generateOTP(6)
 CryptoUtil.encrypt(text, key)
