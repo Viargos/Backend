@@ -118,7 +118,7 @@ export class DashboardController {
     @Query() query: DashboardPostsDto,
   ): Promise<
     DataResponse<{
-      posts: (PostEntity & { isLikedByCurrentUser?: boolean })[];
+      posts: (PostEntity & { isLikedByUser?: boolean })[];
       hasMore: boolean;
       nextCursor?: string;
       totalCount: number;

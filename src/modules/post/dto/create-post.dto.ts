@@ -27,7 +27,7 @@ export class CreatePostDto {
 
   @ApiProperty({
     description: 'Location name for standalone posts',
-    example: 'Paris, France',
+    example: 'New York, NY, USA',
     required: false,
   })
   @IsString()
@@ -36,7 +36,7 @@ export class CreatePostDto {
 
   @ApiProperty({
     description: 'Latitude for location',
-    example: 48.8566,
+    example: 40.7128,
     required: false,
   })
   @IsNumber()
@@ -45,7 +45,7 @@ export class CreatePostDto {
 
   @ApiProperty({
     description: 'Longitude for location',
-    example: 2.3522,
+    example: -74.006,
     required: false,
   })
   @IsNumber()

@@ -46,10 +46,11 @@
     "class-validator": "^0.14.1",
     "compression": "^1.7.5",
     "express": "^4.21.2",
+    "geoip-lite": "^1.4.10",
     "handlebars": "^4.7.8",
     "helmet": "^8.0.0",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.3",
+    "nodemailer": "^7.0.11",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
@@ -58,7 +59,7 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
     "swagger-ui-express": "^5.0.1",
-    "typeorm": "^0.3.21",
+    "typeorm": "^0.3.27",
     "uuid": "^11.1.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"
@@ -68,6 +69,7 @@
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",
     "@types/compression": "^1.7.5",
+    "@types/geoip-lite": "^1.4.4",
     "@types/jest": "^29.5.2",
     "@types/node": "^20.3.1",
     "@types/supertest": "^6.0.0",
@@ -85,5 +87,14 @@
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.1.3"
+  },
+  "overrides": {
+    "glob": "^10.4.6",
+    "js-yaml": "^4.1.1",
+    "tmp": "^0.2.4",
+    "html-minifier": "^4.0.0",
+    "preview-email": {
+      "nodemailer": "^7.0.7"
+    }
   }
 }

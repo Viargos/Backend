@@ -98,6 +98,24 @@ export class UserService {
     return this.s3Service.getSignedUrl(fileKey);
   }
 
+  /**
+   * Generate a pre-signed S3 upload URL for the current user.
+   */
+  async getUploadSignedUrl(params: {
+    userId: string;
+    fileName: string;
+    contentType: string;
+    folder?: string;
+  }) {
+    const { userId, fileName, contentType, folder } = params;
+    return this.s3Service.getUploadSignedUrl({
+      userId,
+      fileName,
+      contentType,
+      folder,
+    });
+  }
+
   async getUserProfile(userId: string, currentUserId?: string): Promise<UserProfileResponseDto> {
     // Get user details
     const user = await this.userRepository.getUserById(userId);

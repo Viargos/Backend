@@ -15,10 +15,10 @@ export class UpdateJourneyDayPlaceDto extends PartialType(CreateJourneyDayPlaceD
   @ApiProperty({ required: false, description: 'Full address of the place' })
   address?: string;
 
-  @ApiProperty({ required: false, description: 'Latitude coordinate', example: 48.8566 })
+  @ApiProperty({ required: false, description: 'Latitude coordinate', example: 40.7128 })
   latitude?: number;
 
-  @ApiProperty({ required: false, description: 'Longitude coordinate', example: 2.3522 })
+  @ApiProperty({ required: false, description: 'Longitude coordinate', example: -74.006 })
   longitude?: number;
 
   @ApiProperty({ required: false })

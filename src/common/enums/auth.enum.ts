@@ -1,0 +1,31 @@
+/**
+ * Authentication-related enumerations
+ */
+
+export enum OtpType {
+  EMAIL_VERIFICATION = 'EMAIL_VERIFICATION',
+  PASSWORD_RESET = 'PASSWORD_RESET',
+  TWO_FACTOR_AUTH = 'TWO_FACTOR_AUTH',
+  PHONE_VERIFICATION = 'PHONE_VERIFICATION',
+}
+
+export enum TokenType {
+  ACCESS = 'ACCESS',
+  REFRESH = 'REFRESH',
+  EMAIL_VERIFICATION = 'EMAIL_VERIFICATION',
+  PASSWORD_RESET = 'PASSWORD_RESET',
+}
+
+export enum AuthProvider {
+  LOCAL = 'LOCAL',
+  GOOGLE = 'GOOGLE',
+  FACEBOOK = 'FACEBOOK',
+  APPLE = 'APPLE',
+}
+
+export enum OtpStatus {
+  PENDING = 'PENDING',
+  VERIFIED = 'VERIFIED',
+  EXPIRED = 'EXPIRED',
+  USED = 'USED',
+}

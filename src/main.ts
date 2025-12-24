@@ -27,11 +27,13 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const serverConfig = configService.getOrThrow<ServerConfig>(ServerConfigName);
 
+  // Enable CORS for both HTTP and WebSocket
   app.enableCors({
-    origin: '*', // Default to '*' if no CORS origin specified
+    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Authorization',
-    exposedHeaders: 'access-token', // Expose the Authorization header
+    exposedHeaders: 'access-token',
+    credentials: true,
   });
 
   // Register helmet for security headers

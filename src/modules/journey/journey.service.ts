@@ -42,8 +42,9 @@ export class JourneyService {
 
   async remove(id: string): Promise<void> {
     const journey = await this.journeyRepository.findOneById(id);
+    // Make deletion idempotent: if journey doesn't exist, treat it as already deleted
     if (!journey) {
-      throw new NotFoundException('Journey not found');
+      return; // Journey already deleted or doesn't exist - consider it successful
     }
     return this.journeyRepository.removeJourney(id);
   }
