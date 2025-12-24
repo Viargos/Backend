@@ -108,7 +108,7 @@ CryptoUtil.generateOTP(6)
 CryptoUtil.encrypt(text, key)
 ```
 
-#### File Validation
+#### File Validation 
 ```typescript
 FileValidatorUtil.validateProfileImage(file)
 FileValidatorUtil.validatePostMedia(file)
