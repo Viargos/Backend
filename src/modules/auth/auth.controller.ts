@@ -14,6 +14,7 @@ import { SignInDto } from './dto/signin.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 import { LocalAuthGuard } from 'src/security/local-auth.guard';
 import { JwtAuthGuard } from 'src/security/jwt-auth.guard';
 import { PasswordResetGuard } from './guards/password-reset.guard';
@@ -54,6 +55,16 @@ export class AuthController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Public()
+  @Post('resend-otp')
+  @ApiOperation({ summary: 'Resend OTP for email verification or password reset' })
+  @ApiResponse({ status: 200, description: 'OTP resent successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async resendOtp(@Body() resendOtpDto: ResendOtpDto) {
+    return this.authService.resendOtp(resendOtpDto);
   }
 
   @Public()

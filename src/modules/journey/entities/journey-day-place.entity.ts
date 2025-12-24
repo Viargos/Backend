@@ -1,10 +1,6 @@
-import {
-  Column,
-  Entity,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { JourneyDay } from './journey-day.entity';
+import { JourneyMedia } from './journey-media.entity';
 
 export enum PlaceType {
   STAY = 'STAY',
@@ -46,6 +42,13 @@ export class JourneyDayPlace {
   @Column({ type: 'time', nullable: true })
   endTime: string;
 
-  @ManyToOne(() => JourneyDay, (day) => day.places)
+  @ManyToOne(() => JourneyDay, (day) => day.places, {
+    onDelete: 'CASCADE',
+  })
   journeyDay: JourneyDay;
+
+  @OneToMany(() => JourneyMedia, (media) => media.journeyDayPlace, {
+    cascade: true,
+  })
+  media: JourneyMedia[];
 }

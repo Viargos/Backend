@@ -23,11 +23,20 @@ import { CreateJourneyDto } from './dto/create-journey.dto';
 import { UpdateJourneyDto } from './dto/update-journey.dto';
 import { NearbyJourneysDto } from './dto/nearby-journeys.dto';
 
+// ✅ NEW: Import logger and constants
+import { Logger } from '../../common/utils';
+import { SUCCESS_MESSAGES } from '../../common/constants';
+
 @ApiTags('journeys')
 @Controller('journeys')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class JourneyController {
+  // ✅ NEW: Add logger
+  private readonly logger = Logger.child({
+    service: 'JourneyController',
+  });
+
   constructor(private readonly journeyService: JourneyService) {}
 
   @Post()
@@ -37,12 +46,30 @@ export class JourneyController {
     description: 'Journey created successfully',
     type: Journey,
   })
-  create(
+  async create(
     @Request() req,
     @Body() createJourneyDto: CreateJourneyDto,
   ): Promise<Journey> {
     createJourneyDto.user = req.user;
-    return this.journeyService.create(createJourneyDto);
+
+    // ✅ NEW: Log journey creation
+    this.logger.info('Creating new journey', {
+      userId: req.user.id,
+      title: createJourneyDto.title,
+      hasDescription: !!createJourneyDto.description,
+      dayCount: createJourneyDto.days?.length || 0,
+    });
+
+    const journey = await this.journeyService.create(createJourneyDto);
+
+    // ✅ NEW: Log success
+    this.logger.info('Journey created successfully', {
+      journeyId: journey.id,
+      userId: req.user.id,
+      title: journey.title,
+    });
+
+    return journey;
   }
 
   @Get()
@@ -52,8 +79,18 @@ export class JourneyController {
     description: 'Journeys retrieved successfully',
     type: [Journey],
   })
-  findAll(): Promise<Journey[]> {
-    return this.journeyService.findAll();
+  async findAll(): Promise<Journey[]> {
+    // ✅ NEW: Log journeys fetch
+    this.logger.info('Fetching all journeys');
+
+    const journeys = await this.journeyService.findAll();
+
+    // ✅ NEW: Log success
+    this.logger.info('Journeys retrieved', {
+      journeyCount: journeys.length,
+    });
+
+    return journeys;
   }
 
   @Get('my-journeys')
@@ -64,10 +101,22 @@ export class JourneyController {
     type: [Journey],
   })
   async findMyJourneys(@Request() req) {
+    // ✅ NEW: Log user journeys fetch
+    this.logger.info('Fetching user journeys', {
+      userId: req.user.id,
+    });
+
     const journeys = await this.journeyService.findByUser(req.user.id);
+
+    // ✅ NEW: Log success
+    this.logger.info('User journeys retrieved', {
+      userId: req.user.id,
+      journeyCount: journeys.length,
+    });
+
     return {
       statusCode: 200,
-      message: 'User journeys retrieved successfully',
+      message: SUCCESS_MESSAGES.JOURNEY.CREATED, // ✅ FIXED: Use constant
       data: journeys,
     };
   }
@@ -90,7 +139,23 @@ export class JourneyController {
   async findNearbyJourneys(
     @Query() nearbyDto: NearbyJourneysDto,
   ): Promise<{ statusCode: number; message: string; data: Journey[] }> {
+    // ✅ NEW: Log nearby search
+    this.logger.info('Searching nearby journeys', {
+      latitude: nearbyDto.latitude,
+      longitude: nearbyDto.longitude,
+      radius: nearbyDto.radius,
+    });
+
     const journeys = await this.journeyService.findNearby(nearbyDto);
+
+    // ✅ NEW: Log results
+    this.logger.info('Nearby journeys retrieved', {
+      latitude: nearbyDto.latitude,
+      longitude: nearbyDto.longitude,
+      radius: nearbyDto.radius,
+      journeyCount: journeys.length,
+    });
+
     return {
       statusCode: 200,
       message: 'Nearby journeys retrieved successfully',
@@ -105,8 +170,21 @@ export class JourneyController {
     description: 'Journey retrieved successfully',
     type: Journey,
   })
-  findOne(@Param('id') id: string): Promise<Journey> {
-    return this.journeyService.findOne(id);
+  async findOne(@Param('id') id: string): Promise<Journey> {
+    // ✅ NEW: Log journey fetch
+    this.logger.info('Fetching journey by ID', {
+      journeyId: id,
+    });
+
+    const journey = await this.journeyService.findOne(id);
+
+    // ✅ NEW: Log success
+    this.logger.info('Journey retrieved successfully', {
+      journeyId: id,
+      title: journey.title,
+    });
+
+    return journey;
   }
 
   @Patch(':id')
@@ -116,17 +194,54 @@ export class JourneyController {
     description: 'Journey updated successfully',
     type: Journey,
   })
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateJourneyDto: UpdateJourneyDto,
   ): Promise<Journey> {
-    return this.journeyService.update(id, updateJourneyDto);
+    // ✅ NEW: Log update attempt
+    this.logger.info('Updating journey', {
+      journeyId: id,
+      fieldsToUpdate: Object.keys(updateJourneyDto),
+    });
+
+    const journey = await this.journeyService.update(id, updateJourneyDto);
+
+    // ✅ NEW: Log success
+    this.logger.info('Journey updated successfully', {
+      journeyId: id,
+      title: journey.title,
+    });
+
+    return journey;
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a journey' })
   @ApiResponse({ status: 200, description: 'Journey deleted successfully' })
-  remove(@Param('id') id: string): Promise<void> {
-    return this.journeyService.remove(id);
+  async remove(@Param('id') id: string): Promise<{ success: boolean }> {
+    // ✅ NEW: Log deletion
+    this.logger.info('Deleting journey', {
+      journeyId: id,
+    });
+
+    try {
+      await this.journeyService.remove(id);
+
+      // ✅ NEW: Log success
+      this.logger.info('Journey deleted successfully', {
+        journeyId: id,
+      });
+
+      // Return proper JSON response to prevent frontend parsing errors
+      return { success: true };
+    } catch (error) {
+      // Log error but don't let it affect session
+      this.logger.error('Failed to delete journey', {
+        journeyId: id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      // Re-throw to let NestJS exception handler deal with it properly
+      throw error;
+    }
   }
 }

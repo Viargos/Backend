@@ -21,13 +21,28 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     try {
-      const user = await this.usersRepo.getUserById(payload.id);
+      // Use 'sub' field as per JWT standard (subject = user ID)
+      const user = await this.usersRepo.getUserById(payload.sub);
 
       if (!user) throw new UnauthorizedException('UNAUTHORIZED');
 
+      // For password reset tokens, skip isActive check (user might be resetting password)
+      // But include purpose from payload for PasswordResetGuard validation
+      if (payload.purpose === 'password_reset') {
+        return {
+          ...user,
+          purpose: payload.purpose,
+        };
+      }
+
+      // For regular auth tokens, check if user is active
       if (!user.isActive) throw new UnauthorizedException('PLEASE_VERIFY_YOUR_EMAIL');
 
-      return user;
+      // Include purpose if present (for future use)
+      return {
+        ...user,
+        purpose: payload.purpose,
+      };
     } catch (error) {
       throw new UnauthorizedException('UNAUTHORIZED');
     }

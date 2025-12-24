@@ -8,8 +8,11 @@ import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseFactory } from './setup/database.factory';
+import { SetupModule } from './setup/setup.module';
 import { PostModule } from './modules/post/post.module';
 import { JourneyModule } from './modules/journey/journey.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { LocationModule } from './modules/location/location.module';
 import authkeyConfig from './config/authkey.config';
 
 @Module({
@@ -28,6 +31,9 @@ import authkeyConfig from './config/authkey.config';
     AuthModule,
     PostModule,
     JourneyModule,
+    ChatModule,
+    LocationModule,
+    SetupModule,
   ],
 })
 export class AppModule {}

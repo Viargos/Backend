@@ -1,7 +1,14 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ChatRepository } from './chat.repository';
 import { UserRepository } from '../user/user.repository';
 import { ChatMessage } from './entities/chat-message.entity';
+import { User } from '../user/entities/user.entity';
+import { SearchUsersDto } from './dto/search-users.dto';
 
 @Injectable()
 export class ChatService {
@@ -10,7 +17,11 @@ export class ChatService {
     private readonly userRepository: UserRepository,
   ) {}
 
-  async sendMessage(senderId: string, receiverId: string, content: string): Promise<ChatMessage> {
+  async sendMessage(
+    senderId: string,
+    receiverId: string,
+    content: string,
+  ): Promise<ChatMessage> {
     // Validate users exist
     const [sender, receiver] = await Promise.all([
       this.userRepository.getUserById(senderId),
@@ -30,7 +41,12 @@ export class ChatService {
     return this.chatRepository.createMessage(senderId, receiverId, content);
   }
 
-  async getMessagesBetweenUsers(userId1: string, userId2: string, limit: number = 50, offset: number = 0): Promise<ChatMessage[]> {
+  async getMessagesBetweenUsers(
+    userId1: string,
+    userId2: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<ChatMessage[]> {
     // Validate users exist
     const [user1, user2] = await Promise.all([
       this.userRepository.getUserById(userId1),
@@ -41,10 +57,18 @@ export class ChatService {
       throw new NotFoundException('User not found');
     }
 
-    return this.chatRepository.getMessagesBetweenUsers(userId1, userId2, limit, offset);
+    return this.chatRepository.getMessagesBetweenUsers(
+      userId1,
+      userId2,
+      limit,
+      offset,
+    );
   }
 
-  async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
+  async markMessagesAsReadBetweenUsers(
+    senderId: string,
+    receiverId: string,
+  ): Promise<void> {
     // Validate users exist
     const [sender, receiver] = await Promise.all([
       this.userRepository.getUserById(senderId),
@@ -68,7 +92,9 @@ export class ChatService {
     return this.chatRepository.getUnreadMessageCount(userId);
   }
 
-  async getRecentChats(userId: string): Promise<{ userId: string; lastMessage: ChatMessage }[]> {
+  async getRecentChats(
+    userId: string,
+  ): Promise<{ userId: string; lastMessage: ChatMessage }[]> {
     // Validate user exists
     const user = await this.userRepository.getUserById(userId);
     if (!user) {
@@ -77,4 +103,205 @@ export class ChatService {
 
     return this.chatRepository.getRecentChats(userId);
   }
-} 
+
+  // New methods for enhanced functionality
+
+  async searchUsers(
+    searchUsersDto: SearchUsersDto,
+  ): Promise<{ users: User[] }> {
+    const users = await this.chatRepository.searchUsers(
+      searchUsersDto.q,
+      searchUsersDto.limit,
+      searchUsersDto.offset,
+    );
+    return { users };
+  }
+
+  async getUserById(userId: string): Promise<{ user: User }> {
+    const user = await this.userRepository.getUserById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return { user };
+  }
+
+  async getConversations(userId: string): Promise<{ conversations: any[] }> {
+    const user = await this.userRepository.getUserById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const conversations = await this.chatRepository.getConversations(userId);
+    return { conversations };
+  }
+
+  async createConversation(
+    userId: string,
+    otherUserId: string,
+  ): Promise<{ conversation: any }> {
+    if (userId === otherUserId) {
+      throw new BadRequestException('Cannot create conversation with yourself');
+    }
+
+    const [user, otherUser] = await Promise.all([
+      this.userRepository.getUserById(userId),
+      this.userRepository.getUserById(otherUserId),
+    ]);
+
+    if (!user || !otherUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const conversation = await this.chatRepository.createConversation(
+      userId,
+      otherUserId,
+    );
+    return { conversation };
+  }
+
+  async getConversation(
+    userId: string,
+    conversationId: string,
+  ): Promise<{ conversation: any }> {
+    const conversation = await this.chatRepository.getConversation(
+      userId,
+      conversationId,
+    );
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    return { conversation };
+  }
+
+  async markConversationAsRead(
+    userId: string,
+    conversationId: string,
+  ): Promise<void> {
+    const conversation = await this.chatRepository.getConversation(
+      userId,
+      conversationId,
+    );
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    await this.chatRepository.markConversationAsRead(userId, conversationId);
+  }
+
+  async deleteConversation(
+    userId: string,
+    conversationId: string,
+  ): Promise<void> {
+    const conversation = await this.chatRepository.getConversation(
+      userId,
+      conversationId,
+    );
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    await this.chatRepository.deleteConversation(conversationId);
+  }
+
+  async getMessages(
+    userId: string,
+    conversationId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<{ messages: ChatMessage[]; pagination: any }> {
+    const conversation = await this.chatRepository.getConversation(
+      userId,
+      conversationId,
+    );
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const messages = await this.chatRepository.getMessages(
+      conversationId,
+      limit,
+      offset,
+    );
+    const total = await this.chatRepository.getMessageCount(conversationId);
+
+    return {
+      messages,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      },
+    };
+  }
+
+  async markMessageAsRead(userId: string, messageId: string): Promise<void> {
+    const message = await this.chatRepository.getMessageById(messageId);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.receiverId !== userId) {
+      throw new ForbiddenException(
+        'You can only mark your own received messages as read',
+      );
+    }
+
+    await this.chatRepository.markMessageAsRead(messageId);
+  }
+
+  async markMessagesAsRead(
+    userId: string,
+    messageIds: string[],
+  ): Promise<void> {
+    const messages = await this.chatRepository.getMessagesByIds(messageIds);
+
+    // Filter messages that belong to the user
+    const userMessages = messages.filter((msg) => msg.receiverId === userId);
+
+    if (userMessages.length !== messageIds.length) {
+      throw new ForbiddenException('Some messages do not belong to you');
+    }
+
+    await this.chatRepository.markMessagesAsReadByIds(messageIds);
+  }
+
+  async updateMessage(
+    userId: string,
+    messageId: string,
+    content: string,
+  ): Promise<ChatMessage> {
+    const message = await this.chatRepository.getMessageById(messageId);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only update your own messages');
+    }
+
+    return this.chatRepository.updateMessage(messageId, content);
+  }
+
+  async deleteMessage(userId: string, messageId: string): Promise<void> {
+    const message = await this.chatRepository.getMessageById(messageId);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only delete your own messages');
+    }
+
+    await this.chatRepository.deleteMessage(messageId);
+  }
+
+  async getOnlineUsers(): Promise<{ users: User[] }> {
+    const users = await this.chatRepository.getOnlineUsers();
+    return { users };
+  }
+
+  async updateUserStatus(userId: string, isOnline: boolean): Promise<void> {
+    await this.chatRepository.updateUserStatus(userId, isOnline);
+  }
+}

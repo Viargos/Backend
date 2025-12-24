@@ -70,15 +70,56 @@ export class PostRepository {
 
   async getPostsByUserId(
     userId: string,
-    limit: number = 10,
-    offset: number = 0,
+    limit?: number,
+    offset?: number,
   ): Promise<Post[]> {
+    // CRITICAL: Ensure limit and offset are ALWAYS valid numbers (TypeORM requires numbers)
+    // Handle all edge cases: undefined, null, NaN, strings, etc.
+    let safeLimit: number = 10; // default
+    let safeOffset: number = 0; // default
+
+    // Validate limit
+    if (limit !== undefined && limit !== null) {
+      if (typeof limit === 'number' && !isNaN(limit) && isFinite(limit) && limit > 0) {
+        safeLimit = Math.floor(limit); // Ensure it's an integer
+      } else if (typeof limit === 'string') {
+        const parsed = parseInt(limit, 10);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed > 0) {
+          safeLimit = parsed;
+        }
+      }
+    }
+
+    // Validate offset
+    if (offset !== undefined && offset !== null) {
+      if (typeof offset === 'number' && !isNaN(offset) && isFinite(offset) && offset >= 0) {
+        safeOffset = Math.floor(offset); // Ensure it's an integer
+      } else if (typeof offset === 'string') {
+        const parsed = parseInt(offset, 10);
+        if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
+          safeOffset = parsed;
+        }
+      }
+    }
+
+    // Final safety check - ensure we have valid numbers
+    safeLimit = Number.isInteger(safeLimit) && safeLimit > 0 ? safeLimit : 10;
+    safeOffset = Number.isInteger(safeOffset) && safeOffset >= 0 ? safeOffset : 0;
+
+    this.logger.debug('getPostsByUserId called', {
+      userId,
+      originalLimit: limit,
+      originalOffset: offset,
+      safeLimit,
+      safeOffset,
+    });
+
     return await this.postRepo.find({
       where: { user: { id: userId } },
       relations: ['user', 'media', 'likes', 'comments', 'journey'],
       order: { createdAt: 'DESC' },
-      take: limit,
-      skip: offset,
+      take: safeLimit,
+      skip: safeOffset,
     });
   }
 

@@ -1,7 +1,6 @@
 import {
   Injectable,
   BadRequestException,
-  Logger,
   ConflictException,
   InternalServerErrorException,
   UnauthorizedException,
@@ -9,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../user/entities/user.entity';
 import { SignUpDto } from './dto/signup.dto';
@@ -23,10 +21,27 @@ import { UserOtpRepository } from '../user/user-otp.repository';
 import { OtpType } from '../user/entities/user-otp.entity';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
+
+// ✅ NEW: Import utilities and constants
+import {
+  Logger,
+  CryptoUtil,
+  DateUtil,
+  StringUtil,
+} from '../../common/utils';
+import {
+  ERROR_MESSAGES,
+  SUCCESS_MESSAGES,
+  TIME,
+} from '../../common/constants';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  // ✅ NEW: Use our custom logger instead of NestJS Logger
+  private readonly logger = Logger.child({
+    service: 'AuthService',
+  });
 
   constructor(
     @InjectRepository(User)
@@ -43,6 +58,12 @@ export class AuthService {
     try {
       const { username, email, phoneNumber, password } = signUpDto;
 
+      // ✅ NEW: Log signup attempt (with masked data)
+      this.logger.info('User signup attempt', {
+        email: StringUtil.maskEmail(email),
+        username,
+      });
+
       // Check all unique fields in parallel
       const [emailExists, usernameExists, phoneExists] = await Promise.all([
         this.userRepo.findOne({ where: { email } }),
@@ -54,13 +75,23 @@ export class AuthService {
 
       // Build errors object
       const errors: Record<string, string> = {};
-      if (emailExists) errors.email = `Email '${email}' already exists`;
-      if (usernameExists) errors.username = `Username '${username}' already exists`;
-      if (phoneExists) errors.phoneNumber = `Phone number '${phoneNumber}' already exists`;
+      if (emailExists) {
+        errors.email = ERROR_MESSAGES.USER.EMAIL_ALREADY_EXISTS;
+      }
+      if (usernameExists) {
+        errors.username = ERROR_MESSAGES.USER.USERNAME_ALREADY_EXISTS;
+      }
+      if (phoneExists) {
+        errors.phoneNumber = ERROR_MESSAGES.USER.PHONE_ALREADY_EXISTS;
+      }
 
       // If any errors exist, throw them
       if (Object.keys(errors).length > 0) {
-        // Create message with error values separated by dots
+        this.logger.warn('Signup validation failed', {
+          email: StringUtil.maskEmail(email),
+          errors: Object.keys(errors),
+        });
+
         const errorValues = Object.values(errors).join('. ');
         throw new BadRequestException({
           message: `Validation failed: ${errorValues}`,
@@ -68,8 +99,8 @@ export class AuthService {
         });
       }
 
-      // Create new user if no errors
-      const hashedPassword = await bcrypt.hash(password, 10);
+      // ✅ NEW: Use CryptoUtil for password hashing
+      const hashedPassword = await CryptoUtil.hashPassword(password);
 
       const user = this.userRepo.create({
         username,
@@ -81,10 +112,17 @@ export class AuthService {
 
       await this.userRepo.save(user);
 
-      // Generate and save OTP
-      const otp = OtpHelper.generateOtp();
+      // ✅ NEW: Use CryptoUtil to generate OTP
+      const otp = CryptoUtil.generateOTP(6);
 
-      console.log(otp, '------otp------');
+      // ✅ REMOVED: console.log(otp, '------otp------'); - SECURITY ISSUE FIXED!
+
+      // ✅ NEW: Log OTP generation safely (without exposing the actual OTP)
+      this.logger.info('OTP generated for email verification', {
+        userId: user.id,
+        email: StringUtil.maskEmail(email),
+        expiresIn: `${TIME.OTP_EXPIRY_MINUTES} minutes`,
+      });
 
       const otpHash = OtpHelper.encodeOtp(otp);
       await this.userOtpRepository.createOtp(
@@ -93,7 +131,7 @@ export class AuthService {
         OtpType.EMAIL_VERIFICATION,
       );
 
-      // Send OTP email (disabled for development)
+      // Send OTP email
       try {
         const typeOfTemplate = 'email-verification';
         const sendEmail = async (typeOfTemplate: string) => {
@@ -107,28 +145,50 @@ export class AuthService {
               otp,
             },
           });
-          console.log('email sent successfully');
+
+          // ✅ REPLACED: console.log with Logger
+          this.logger.info('Email sent successfully', {
+            to: StringUtil.maskEmail(email),
+            type: 'email-verification',
+          });
         };
         sendEmail(typeOfTemplate);
       } catch (emailError) {
-        this.logger.warn(`Email sending failed: ${emailError.message}`);
+        // ✅ NEW: Better error logging
+        this.logger.error('Email sending failed', {
+          to: StringUtil.maskEmail(email),
+          error: emailError.message,
+        });
         // Don't fail signup if email fails, just log it
       }
 
+      // ✅ NEW: Log successful signup
+      this.logger.info('User registered successfully', {
+        userId: user.id,
+        email: StringUtil.maskEmail(email),
+      });
+
       return {
-        message: 'User registered successfully. Please verify your email.',
+        message: SUCCESS_MESSAGES.AUTH.SIGNUP_SUCCESS,
       };
     } catch (error) {
-      console.log(error, '-----error--------');
+      // ✅ REMOVED: console.log(error, '-----error--------');
 
-      this.logger.error(`Signup failed: ${error.message}`, error.stack);
+      // ✅ NEW: Use Logger.exception for proper error logging with stack trace
+      this.logger.exception(error, {
+        context: 'signUp',
+        email: signUpDto.email ? StringUtil.maskEmail(signUpDto.email) : 'unknown',
+      });
+
       if (
         error instanceof ConflictException ||
         error instanceof BadRequestException
       ) {
         throw error;
       }
-      throw new InternalServerErrorException('Registration failed');
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.AUTH.SIGNUP_FAILED || 'Registration failed',
+      );
     }
   }
 
@@ -138,10 +198,19 @@ export class AuthService {
   ): Promise<{ message: string; accessToken?: string }> {
     try {
       const { email, otp } = verifyOtpDto;
+
+      // ✅ NEW: Log verification attempt
+      this.logger.info('OTP verification attempt', {
+        email: StringUtil.maskEmail(email),
+      });
+
       const user = await this.userRepository.getUserByEmail(email);
 
       if (!user) {
-        throw new UnauthorizedException('Invalid email address');
+        this.logger.warn('OTP verification failed: user not found', {
+          email: StringUtil.maskEmail(email),
+        });
+        throw new UnauthorizedException(ERROR_MESSAGES.USER.NOT_FOUND);
       }
 
       // Get the latest OTP for the user
@@ -150,15 +219,22 @@ export class AuthService {
         user.isActive ? OtpType.PASSWORD_RESET : OtpType.EMAIL_VERIFICATION,
       );
 
-      if (new Date() > userOtp.otpExpiry) {
-        throw new BadRequestException(
-          'OTP has expired. Please request a new one.',
-        );
+      // ✅ NEW: Use DateUtil for date comparison
+      if (DateUtil.isExpired(userOtp.otpExpiry)) {
+        this.logger.warn('OTP expired', {
+          userId: user.id,
+          expiredAt: DateUtil.formatToISO(userOtp.otpExpiry),
+        });
+        throw new BadRequestException(ERROR_MESSAGES.OTP.EXPIRED);
       }
 
       const decodedOtp = OtpHelper.decodeOtp(userOtp.otpHash);
       if (decodedOtp !== otp) {
-        throw new UnauthorizedException('Invalid OTP');
+        this.logger.warn('Invalid OTP provided', {
+          userId: user.id,
+          email: StringUtil.maskEmail(email),
+        });
+        throw new UnauthorizedException(ERROR_MESSAGES.OTP.INVALID);
       }
 
       // Mark OTP as used
@@ -167,11 +243,14 @@ export class AuthService {
       // Generate access token for both email verification and password reset
       const payload = {
         email: user.email,
-        id: user.id,
+        sub: user.id, // Use 'sub' for JWT standard
         purpose: user.isActive ? 'password_reset' : 'login',
       };
-      
-      const expiresIn = user.isActive ? '15m' : '7d'; // Short-lived for password reset, longer for login
+
+      // Short-lived for password reset, longer for login (delegated to constants)
+      const expiresIn = user.isActive
+        ? TIME.PASSWORD_RESET_TOKEN_EXPIRY
+        : TIME.JWT_ACCESS_TOKEN_EXPIRY;
       const accessToken = this.jwtService.sign(payload, {
         expiresIn,
       });
@@ -181,29 +260,45 @@ export class AuthService {
         await this.userRepository.updateUser(user.id, {
           isActive: true,
         });
-        return { 
-          message: 'Email verified successfully',
+
+        // ✅ NEW: Log successful verification
+        this.logger.info('Email verified successfully', {
+          userId: user.id,
+          email: StringUtil.maskEmail(email),
+        });
+
+        return {
+          message: SUCCESS_MESSAGES.AUTH.EMAIL_VERIFIED,
           accessToken,
         };
       }
 
       // If this is password reset verification, return token
+      this.logger.info('OTP verified for password reset', {
+        userId: user.id,
+        email: StringUtil.maskEmail(email),
+      });
+
       return {
-        message: 'OTP verified successfully',
+        message: SUCCESS_MESSAGES.AUTH.OTP_VERIFIED,
         accessToken,
       };
     } catch (error) {
-      this.logger.error(
-        `OTP verification failed: ${error.message}`,
-        error.stack,
-      );
+      // ✅ NEW: Better error logging
+      this.logger.exception(error, {
+        context: 'verifyOtp',
+        email: verifyOtpDto.email ? StringUtil.maskEmail(verifyOtpDto.email) : 'unknown',
+      });
+
       if (
         error instanceof UnauthorizedException ||
         error instanceof BadRequestException
       ) {
         throw error;
       }
-      throw new InternalServerErrorException('OTP verification failed');
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.OTP.VERIFICATION_FAILED || 'OTP verification failed',
+      );
     }
   }
 
@@ -213,19 +308,39 @@ export class AuthService {
   ): Promise<{ message: string }> {
     try {
       const { email } = forgotPasswordDto;
+
+      // ✅ NEW: Log password reset request
+      this.logger.info('Password reset requested', {
+        email: StringUtil.maskEmail(email),
+      });
+
       const user = await this.userRepository.getUserByEmail(email);
 
       if (!user) {
-        throw new NotFoundException('No account found with this email address');
+        this.logger.warn('Password reset failed: user not found', {
+          email: StringUtil.maskEmail(email),
+        });
+        throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
       }
 
       if (!user.isActive) {
-        throw new BadRequestException('Please verify your email first');
+        this.logger.warn('Password reset failed: email not verified', {
+          userId: user.id,
+          email: StringUtil.maskEmail(email),
+        });
+        throw new BadRequestException(ERROR_MESSAGES.AUTH.ACCOUNT_NOT_ACTIVE);
       }
 
-      // Generate and save OTP
-      const otp = OtpHelper.generateOtp();
+      // ✅ NEW: Use CryptoUtil to generate OTP
+      const otp = CryptoUtil.generateOTP(6);
       const otpHash = OtpHelper.encodeOtp(otp);
+
+      // ✅ NEW: Log OTP generation (without exposing OTP)
+      this.logger.info('Password reset OTP generated', {
+        userId: user.id,
+        email: StringUtil.maskEmail(email),
+        expiresIn: `${TIME.OTP_EXPIRY_MINUTES} minutes`,
+      });
 
       // Invalidate any existing password reset OTPs
       await this.userOtpRepository.invalidateUserOtps(
@@ -240,23 +355,42 @@ export class AuthService {
         OtpType.PASSWORD_RESET,
       );
 
-      // Send OTP email (disabled for development)
-      // await this.mailerService.sendMail({
-      //   to: email,
-      //   subject: 'Password Reset Request',
-      //   template: 'password-reset',
-      //   context: {
-      //     username: user.username,
-      //     otp,
-      //   },
-      // });
+      // Send OTP email
+      try {
+        await this.mailerService.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: 'Password Reset Request',
+          template: 'password-reset',
+          context: {
+            username: user.username,
+            otp,
+          },
+        });
 
-      return { message: 'Password reset OTP sent to your email' };
+        // ✅ NEW: Log email sent successfully
+        this.logger.info('Password reset email sent successfully', {
+          to: StringUtil.maskEmail(email),
+          type: 'password-reset',
+        });
+      } catch (emailError) {
+        // ✅ NEW: Better error logging
+        this.logger.error('Password reset email sending failed', {
+          to: StringUtil.maskEmail(email),
+          error: emailError.message,
+        });
+        // Don't fail password reset request if email fails, just log it
+        // The OTP is still generated and stored, user can request resend if needed
+      }
+
+      return { message: SUCCESS_MESSAGES.AUTH.PASSWORD_RESET_REQUESTED };
     } catch (error) {
-      this.logger.error(
-        `Forgot password failed: ${error.message}`,
-        error.stack,
-      );
+      // ✅ NEW: Better error logging
+      this.logger.exception(error, {
+        context: 'forgotPassword',
+        email: forgotPasswordDto.email ? StringUtil.maskEmail(forgotPasswordDto.email) : 'unknown',
+      });
+
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -269,6 +403,111 @@ export class AuthService {
     }
   }
 
+  // Resend OTP for email verification
+  async resendOtp(
+    resendOtpDto: ResendOtpDto,
+  ): Promise<{ message: string }> {
+    try {
+      const { email } = resendOtpDto;
+
+      // ✅ NEW: Log OTP resend request
+      this.logger.info('OTP resend requested', {
+        email: StringUtil.maskEmail(email),
+      });
+
+      const user = await this.userRepository.getUserByEmail(email);
+
+      if (!user) {
+        this.logger.warn('OTP resend failed: user not found', {
+          email: StringUtil.maskEmail(email),
+        });
+        throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
+      }
+
+      // Determine OTP type based on user status
+      const otpType = user.isActive 
+        ? OtpType.PASSWORD_RESET 
+        : OtpType.EMAIL_VERIFICATION;
+
+      // ✅ NEW: Use CryptoUtil to generate OTP
+      const otp = CryptoUtil.generateOTP(6);
+      const otpHash = OtpHelper.encodeOtp(otp);
+
+      // ✅ NEW: Log OTP generation (without exposing OTP)
+      this.logger.info('OTP generated for resend', {
+        userId: user.id,
+        email: StringUtil.maskEmail(email),
+        otpType,
+        expiresIn: `${TIME.OTP_EXPIRY_MINUTES} minutes`,
+      });
+
+      // Invalidate any existing OTPs of the same type
+      await this.userOtpRepository.invalidateUserOtps(user.id, otpType);
+
+      // Create new OTP
+      await this.userOtpRepository.createOtp(
+        user.id,
+        otpHash,
+        otpType,
+      );
+
+      // Send OTP email
+      try {
+        const template = user.isActive ? 'password-reset' : 'email-verification';
+        const subject = user.isActive 
+          ? 'Password Reset Request' 
+          : 'Verify your email address';
+
+        await this.mailerService.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject,
+          template,
+          context: {
+            username: user.username,
+            otp,
+          },
+        });
+
+        // ✅ NEW: Log email sent successfully
+        this.logger.info('OTP email sent successfully', {
+          to: StringUtil.maskEmail(email),
+          type: template,
+        });
+      } catch (emailError) {
+        // ✅ NEW: Better error logging
+        this.logger.error('OTP email sending failed', {
+          to: StringUtil.maskEmail(email),
+          error: emailError.message,
+        });
+        // Don't fail OTP resend if email fails, just log it
+        // The OTP is still generated and stored, user can try again if needed
+      }
+
+      return { 
+        message: user.isActive 
+          ? SUCCESS_MESSAGES.AUTH.PASSWORD_RESET_REQUESTED
+          : SUCCESS_MESSAGES.AUTH.OTP_SENT 
+      };
+    } catch (error) {
+      // ✅ NEW: Better error logging
+      this.logger.exception(error, {
+        context: 'resendOtp',
+        email: resendOtpDto.email ? StringUtil.maskEmail(resendOtpDto.email) : 'unknown',
+      });
+
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Failed to resend OTP',
+      );
+    }
+  }
+
   // Reset Password
   async resetPassword(
     userId: string,
@@ -276,23 +515,39 @@ export class AuthService {
   ): Promise<{ message: string }> {
     try {
       const { newPassword } = resetPasswordDto;
+
+      // ✅ NEW: Log password reset attempt
+      this.logger.info('Password reset attempt', { userId });
+
       const user = await this.userRepository.getUserById(userId);
 
       if (!user) {
-        throw new NotFoundException('User not found');
+        this.logger.warn('Password reset failed: user not found', { userId });
+        throw new NotFoundException(ERROR_MESSAGES.USER.NOT_FOUND);
       }
 
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      // ✅ NEW: Use CryptoUtil for password hashing
+      const hashedPassword = await CryptoUtil.hashPassword(newPassword);
 
       // Update password
       await this.userRepository.updateUser(user.id, {
         password: hashedPassword,
       });
 
-      return { message: 'Password reset successful' };
+      // ✅ NEW: Log successful password reset
+      this.logger.info('Password reset successful', {
+        userId: user.id,
+        email: StringUtil.maskEmail(user.email),
+      });
+
+      return { message: SUCCESS_MESSAGES.AUTH.PASSWORD_RESET_SUCCESS };
     } catch (error) {
-      this.logger.error(`Password reset failed: ${error.message}`, error.stack);
+      // ✅ NEW: Better error logging
+      this.logger.exception(error, {
+        context: 'resetPassword',
+        userId,
+      });
+
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -303,15 +558,28 @@ export class AuthService {
   // User Signin
   async signIn(user: User): Promise<{ accessToken: string }> {
     try {
-      if (!user.isActive) {
-        const otp = OtpHelper.generateOtp();
+      // ✅ NEW: Log signin attempt
+      this.logger.info('User signin attempt', {
+        userId: user.id,
+        email: StringUtil.maskEmail(user.email),
+      });
 
+      if (!user.isActive) {
+        // ✅ NEW: Use CryptoUtil to generate OTP
+        const otp = CryptoUtil.generateOTP(6);
         const otpHash = OtpHelper.encodeOtp(otp);
+
         await this.userOtpRepository.createOtp(
           user.id,
           otpHash,
           OtpType.EMAIL_VERIFICATION,
         );
+
+        // ✅ NEW: Log OTP generation
+        this.logger.warn('Signin blocked: email not verified', {
+          userId: user.id,
+          email: StringUtil.maskEmail(user.email),
+        });
 
         // Send OTP email (disabled for development)
         // await this.mailerService.sendMail({
@@ -323,20 +591,33 @@ export class AuthService {
         //     otp,
         //   },
         // });
-        throw new UnauthorizedException('Please verify your email first');
+
+        throw new UnauthorizedException(ERROR_MESSAGES.AUTH.ACCOUNT_NOT_ACTIVE);
       }
 
-      const payload = { email: user.email, id: user.id };
+      const payload = { email: user.email, sub: user.id }; // Use 'sub' for JWT standard
       const expiresIn =
         this.configService.get<AuthKeyConfig>(AuthKeyConfigName);
 
-      return {
-        accessToken: this.jwtService.sign(payload, {
-          expiresIn: expiresIn.expiresIn,
-        }),
-      };
+      const accessToken = this.jwtService.sign(payload, {
+        expiresIn: expiresIn.expiresIn,
+      });
+
+      // ✅ NEW: Log successful signin
+      this.logger.info('User signin successful', {
+        userId: user.id,
+        email: StringUtil.maskEmail(user.email),
+      });
+
+      return { accessToken };
     } catch (error) {
-      this.logger.error(`Signin failed: ${error.message}`, error.stack);
+      // ✅ NEW: Better error logging
+      this.logger.exception(error, {
+        context: 'signIn',
+        userId: user?.id,
+        email: user?.email ? StringUtil.maskEmail(user.email) : 'unknown',
+      });
+
       throw new InternalServerErrorException(error.message || 'Login failed');
     }
   }
@@ -344,10 +625,23 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userRepository.getUserByEmail(email);
 
-    if (user && bcrypt.compareSync(password, user.password)) {
+    // ✅ NEW: Use CryptoUtil for password comparison
+    if (user && (await CryptoUtil.comparePassword(password, user.password))) {
+      // ✅ NEW: Log successful validation
+      this.logger.info('User credentials validated', {
+        userId: user.id,
+        email: StringUtil.maskEmail(email),
+      });
+
       const { password, ...result } = user;
       return result;
     }
+
+    // ✅ NEW: Log failed validation
+    this.logger.warn('Invalid credentials', {
+      email: StringUtil.maskEmail(email),
+    });
+
     return null;
   }
 

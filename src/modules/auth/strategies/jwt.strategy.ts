@@ -3,12 +3,20 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UserRepository } from 'src/modules/user/user.repository';
+import { ERROR_MESSAGES } from 'src/common/constants';
+
+// Narrowed payload type to the fields this strategy actually depends on
+interface JwtPayload {
+  sub: string;
+  purpose?: string;
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,
-    private usersRepo: UserRepository,
+    private readonly configService: ConfigService,
+    private readonly usersRepo: UserRepository,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -17,17 +25,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
-    try {
-      const user = await this.usersRepo.getUserById(payload.id);
+  async validate(payload: JwtPayload) {
+    // Use 'sub' field as per JWT standard (subject = user ID)
+    const user = await this.usersRepo.getUserById(payload.sub);
 
-      if (!user) {
-        throw new UnauthorizedException('UNAUTHORIZED');
-      }
-
-      return user;
-    } catch (error) {
-      throw new UnauthorizedException('UNAUTHORIZED');
+    if (!user) {
+      throw new UnauthorizedException(ERROR_MESSAGES.UNAUTHORIZED);
     }
+
+    // Include the purpose from the JWT payload so guards can validate it
+    // This is essential for PasswordResetGuard to work correctly
+    return {
+      ...user,
+      purpose: payload.purpose, // may be undefined; guards handle that case
+    };
   }
 }

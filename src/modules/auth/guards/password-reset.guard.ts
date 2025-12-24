@@ -1,18 +1,22 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ERROR_MESSAGES } from 'src/common/constants';
+
+// Local constant to avoid magic string and keep purpose semantics in one place
+const PASSWORD_RESET_PURPOSE = 'password_reset' as const;
 
 @Injectable()
 export class PasswordResetGuard extends AuthGuard('jwt') {
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest(err: any, user: any) {
     if (err || !user) {
-      throw err || new UnauthorizedException('Invalid or expired token');
+      throw err || new UnauthorizedException(ERROR_MESSAGES.AUTH.INVALID_TOKEN);
     }
 
-    // Check if token is for password reset
-    if (user.purpose !== 'password_reset') {
-      throw new UnauthorizedException('Invalid token purpose');
+    // Ensure the token was explicitly issued for password reset
+    if (user.purpose !== PASSWORD_RESET_PURPOSE) {
+      throw new UnauthorizedException(ERROR_MESSAGES.AUTH.PASSWORD_RESET_REQUIRED);
     }
 
     return user;
   }
-} 
+}

@@ -22,7 +22,9 @@ export class JourneyDay {
   @Column({ nullable: true })
   notes: string;
 
-  @ManyToOne(() => Journey, (journey) => journey.days)
+  @ManyToOne(() => Journey, (journey) => journey.days, {
+    onDelete: 'CASCADE',
+  })
   journey: Journey;
 
   @OneToMany(() => JourneyDayPlace, (place) => place.journeyDay, {
