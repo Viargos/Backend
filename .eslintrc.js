@@ -15,11 +15,15 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js'],
+  ignorePatterns: ['.eslintrc.js', 'dist', 'node_modules'],
   rules: {
+    // TypeScript rules
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
+
+    // Let Prettier handle all formatting - no ESLint formatting rules needed
+    // eslint-config-prettier disables conflicting ESLint rules automatically
   },
 };
