@@ -1,0 +1,51 @@
+service: viargos-sandbox-backend
+
+useDotenv: true
+
+plugin:
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  environment: 
+    JWT_SECRET: ${env:JWT_SECRET}
+    EXPIRES_IN: ${env:EXPIRES_IN}
+    NODE_ENV: ${env:NODE_ENV}
+    LOG_DIR: ${env:LOG_DIR}
+    PORT: ${env:PORT}
+    TZ: ${env:TZ}
+    FRONTEND_URL: ${env:FRONTEND_URL}
+    ACCESS_TOKEN_VALIDITY_SEC: ${env:ACCESS_TOKEN_VALIDITY_SEC}
+    REFRESH_TOKEN_VALIDITY_SEC: ${env:REFRESH_TOKEN_VALIDITY_SEC}
+    TOKEN_ISSUER: ${env:TOKEN_ISSUER}
+    TOKEN_AUDIENCE: ${env:TOKEN_AUDIENCE}
+    DB_NAME: ${env:DB_NAME}
+    DB_HOST: ${env:DB_HOST}
+    DB_PORT: ${env:DB_PORT}
+    DB_USER: ${env:DB_USER}
+    DB_PWD: ${env:DB_PWD}
+    DB_TYPE: ${env:DB_TYPE}
+    DATABASE_URL: ${env:DATABASE_URL}
+    OTP_ENCRYPTION_KEY: ${env:OTP_ENCRYPTION_KEY}
+    MAIL_HOST: ${env:MAIL_HOST}
+    MAIL_PORT: ${env:MAIL_PORT}
+    MAIL_SECURE: ${env:MAIL_SECURE}
+    MAIL_USER: ${env:MAIL_USER}
+    MAIL_PASS: ${env:MAIL_PASS}
+    EMAIL_USER: ${env:EMAIL_USER}
+    AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+    AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+    AWS_REGION: ${env:AWS_REGION}
+    AWS_S3_BUCKET_NAME: ${env:AWS_S3_BUCKET_NAME}
+
+functions: 
+  main: 
+    handler: dist/serverless.handler
+    events: 
+      - http:
+          method: ANY
+          path: /
+      - http:
+          method: ANY
+          path: '{proxy+}'
