@@ -12,6 +12,7 @@ import { User } from '../user/entities/user.entity';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { join } from 'path';
+import { EmailService } from './email.service';
 
 @Module({
   imports: [
@@ -40,9 +41,9 @@ import { join } from 'path';
             pass: configService.get('MAIL_PASS'),
           },
           // Add timeout and connection settings for cloud environments
-          connectionTimeout: 10000, // 10 seconds
-          greetingTimeout: 10000,
-          socketTimeout: 10000,
+          connectionTimeout: 30000, // 30 seconds
+          greetingTimeout: 30000,
+          socketTimeout: 30000,
           pool: true,
           maxConnections: 5,
           maxMessages: 10,
@@ -67,7 +68,7 @@ import { join } from 'path';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, ConfigService],
-  exports: [AuthService],
+  providers: [AuthService, EmailService, LocalStrategy, JwtStrategy, ConfigService],
+  exports: [AuthService, EmailService],
 })
 export class AuthModule {}

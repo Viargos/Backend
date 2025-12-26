@@ -22,6 +22,7 @@ import { OtpType } from '../user/entities/user-otp.entity';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
+import { EmailService } from './email.service';
 
 // ✅ NEW: Import utilities and constants
 import { Logger, CryptoUtil, DateUtil, StringUtil } from '../../common/utils';
@@ -42,6 +43,7 @@ export class AuthService {
     private readonly userOtpRepository: UserOtpRepository,
     private readonly configService: ConfigService,
     private readonly mailerService: MailerService,
+    private readonly emailService: EmailService,
   ) {}
 
   // User Signup
@@ -124,26 +126,21 @@ export class AuthService {
 
       // Send OTP email
       try {
-        const typeOfTemplate = 'email-verification';
-        const sendEmail = async (typeOfTemplate: string) => {
-          await this.mailerService.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Verify your email address',
-            template: typeOfTemplate,
-            context: {
-              username,
-              otp,
-            },
-          });
+        await this.emailService.sendEmail({
+          to: email,
+          subject: 'Verify your email address',
+          template: 'email-verification',
+          context: {
+            username,
+            otp,
+          },
+        });
 
-          // ✅ REPLACED: console.log with Logger
-          this.logger.info('Email sent successfully', {
-            to: StringUtil.maskEmail(email),
-            type: 'email-verification',
-          });
-        };
-        await sendEmail(typeOfTemplate);
+        // ✅ REPLACED: console.log with Logger
+        this.logger.info('Email sent successfully', {
+          to: StringUtil.maskEmail(email),
+          type: 'email-verification',
+        });
       } catch (emailError) {
         // ✅ NEW: Better error logging
         this.logger.error('Email sending failed', {
@@ -352,8 +349,7 @@ export class AuthService {
 
       // Send OTP email
       try {
-        await this.mailerService.sendMail({
-          from: process.env.EMAIL_USER,
+        await this.emailService.sendEmail({
           to: email,
           subject: 'Password Reset Request',
           template: 'password-reset',
@@ -451,8 +447,7 @@ export class AuthService {
           ? 'Password Reset Request'
           : 'Verify your email address';
 
-        await this.mailerService.sendMail({
-          from: process.env.EMAIL_USER,
+        await this.emailService.sendEmail({
           to: email,
           subject,
           template,
