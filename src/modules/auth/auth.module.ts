@@ -33,15 +33,27 @@ import { join } from 'path';
       useFactory: async (configService: ConfigService) => ({
         transport: {
           host: configService.get('MAIL_HOST'),
-          port: configService.get('MAIL_PORT'),
+          port: parseInt(configService.get('MAIL_PORT') || '587'),
           secure: configService.get('MAIL_SECURE') === 'true',
           auth: {
             user: configService.get('MAIL_USER'),
             pass: configService.get('MAIL_PASS'),
           },
+          // Add timeout and connection settings for cloud environments
+          connectionTimeout: 10000, // 10 seconds
+          greetingTimeout: 10000,
+          socketTimeout: 10000,
+          pool: true,
+          maxConnections: 5,
+          maxMessages: 10,
+          // Gmail specific settings
+          tls: {
+            rejectUnauthorized: false,
+            minVersion: 'TLSv1.2',
+          },
         },
         defaults: {
-          from: `"No Reply" <${configService.get('MAIL_FROM')}>`,
+          from: configService.get('MAIL_FROM') || configService.get('EMAIL_USER') || configService.get('MAIL_USER'),
         },
         template: {
           dir: join(process.cwd(), 'src/templates'),
