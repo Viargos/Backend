@@ -3,7 +3,7 @@ import * as crypto from 'crypto';
 export class OtpHelper {
   private static readonly ALGORITHM = 'aes-256-cbc';
   private static readonly ENCRYPTION_KEY = process.env.OTP_ENCRYPTION_KEY 
-    ? Buffer.from(process.env.OTP_ENCRYPTION_KEY).slice(0, 32) // Ensure 32 bytes
+    ? crypto.scryptSync(process.env.OTP_ENCRYPTION_KEY, 'otp-salt', 32) // Derive proper 32-byte key
     : crypto.scryptSync('default-encryption-key', 'salt', 32); // Generate a 32-byte key if not provided
   private static readonly IV_LENGTH = 16;
 
