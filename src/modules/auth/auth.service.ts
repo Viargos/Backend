@@ -24,17 +24,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 
 // ✅ NEW: Import utilities and constants
-import {
-  Logger,
-  CryptoUtil,
-  DateUtil,
-  StringUtil,
-} from '../../common/utils';
-import {
-  ERROR_MESSAGES,
-  SUCCESS_MESSAGES,
-  TIME,
-} from '../../common/constants';
+import { Logger, CryptoUtil, DateUtil, StringUtil } from '../../common/utils';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, TIME } from '../../common/constants';
 
 @Injectable()
 export class AuthService {
@@ -152,7 +143,7 @@ export class AuthService {
             type: 'email-verification',
           });
         };
-        sendEmail(typeOfTemplate);
+        await sendEmail(typeOfTemplate);
       } catch (emailError) {
         // ✅ NEW: Better error logging
         this.logger.error('Email sending failed', {
@@ -177,7 +168,9 @@ export class AuthService {
       // ✅ NEW: Use Logger.exception for proper error logging with stack trace
       this.logger.exception(error, {
         context: 'signUp',
-        email: signUpDto.email ? StringUtil.maskEmail(signUpDto.email) : 'unknown',
+        email: signUpDto.email
+          ? StringUtil.maskEmail(signUpDto.email)
+          : 'unknown',
       });
 
       if (
@@ -287,7 +280,9 @@ export class AuthService {
       // ✅ NEW: Better error logging
       this.logger.exception(error, {
         context: 'verifyOtp',
-        email: verifyOtpDto.email ? StringUtil.maskEmail(verifyOtpDto.email) : 'unknown',
+        email: verifyOtpDto.email
+          ? StringUtil.maskEmail(verifyOtpDto.email)
+          : 'unknown',
       });
 
       if (
@@ -388,7 +383,9 @@ export class AuthService {
       // ✅ NEW: Better error logging
       this.logger.exception(error, {
         context: 'forgotPassword',
-        email: forgotPasswordDto.email ? StringUtil.maskEmail(forgotPasswordDto.email) : 'unknown',
+        email: forgotPasswordDto.email
+          ? StringUtil.maskEmail(forgotPasswordDto.email)
+          : 'unknown',
       });
 
       if (
@@ -404,9 +401,7 @@ export class AuthService {
   }
 
   // Resend OTP for email verification
-  async resendOtp(
-    resendOtpDto: ResendOtpDto,
-  ): Promise<{ message: string }> {
+  async resendOtp(resendOtpDto: ResendOtpDto): Promise<{ message: string }> {
     try {
       const { email } = resendOtpDto;
 
@@ -425,8 +420,8 @@ export class AuthService {
       }
 
       // Determine OTP type based on user status
-      const otpType = user.isActive 
-        ? OtpType.PASSWORD_RESET 
+      const otpType = user.isActive
+        ? OtpType.PASSWORD_RESET
         : OtpType.EMAIL_VERIFICATION;
 
       // ✅ NEW: Use CryptoUtil to generate OTP
@@ -445,17 +440,15 @@ export class AuthService {
       await this.userOtpRepository.invalidateUserOtps(user.id, otpType);
 
       // Create new OTP
-      await this.userOtpRepository.createOtp(
-        user.id,
-        otpHash,
-        otpType,
-      );
+      await this.userOtpRepository.createOtp(user.id, otpHash, otpType);
 
       // Send OTP email
       try {
-        const template = user.isActive ? 'password-reset' : 'email-verification';
-        const subject = user.isActive 
-          ? 'Password Reset Request' 
+        const template = user.isActive
+          ? 'password-reset'
+          : 'email-verification';
+        const subject = user.isActive
+          ? 'Password Reset Request'
           : 'Verify your email address';
 
         await this.mailerService.sendMail({
@@ -484,16 +477,18 @@ export class AuthService {
         // The OTP is still generated and stored, user can try again if needed
       }
 
-      return { 
-        message: user.isActive 
+      return {
+        message: user.isActive
           ? SUCCESS_MESSAGES.AUTH.PASSWORD_RESET_REQUESTED
-          : SUCCESS_MESSAGES.AUTH.OTP_SENT 
+          : SUCCESS_MESSAGES.AUTH.OTP_SENT,
       };
     } catch (error) {
       // ✅ NEW: Better error logging
       this.logger.exception(error, {
         context: 'resendOtp',
-        email: resendOtpDto.email ? StringUtil.maskEmail(resendOtpDto.email) : 'unknown',
+        email: resendOtpDto.email
+          ? StringUtil.maskEmail(resendOtpDto.email)
+          : 'unknown',
       });
 
       if (
@@ -502,9 +497,7 @@ export class AuthService {
       ) {
         throw error;
       }
-      throw new InternalServerErrorException(
-        'Failed to resend OTP',
-      );
+      throw new InternalServerErrorException('Failed to resend OTP');
     }
   }
 
