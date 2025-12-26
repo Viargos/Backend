@@ -15,7 +15,7 @@ export class EmailService {
   ) {
     this.resendApiKey = this.configService.get<string>('RESEND_API_KEY') || '';
     this.useResend = !!this.resendApiKey && this.resendApiKey.startsWith('re_');
-    
+
     if (this.useResend) {
       this.logger.info('Using Resend API for email sending');
     } else {
@@ -30,9 +30,10 @@ export class EmailService {
     context: any;
   }): Promise<void> {
     const { to, subject, template, context } = options;
-    const from = this.configService.get<string>('EMAIL_USER') || 
-                 this.configService.get<string>('MAIL_FROM') ||
-                 this.configService.get<string>('MAIL_USER');
+    const from =
+      this.configService.get<string>('EMAIL_USER') ||
+      this.configService.get<string>('MAIL_FROM') ||
+      this.configService.get<string>('MAIL_USER');
 
     try {
       if (this.useResend) {
@@ -76,14 +77,14 @@ export class EmailService {
     context: any;
   }): Promise<void> {
     const { to, from, subject, template, context } = options;
-    
+
     // Generate HTML from template
     const html = this.generateEmailHtml(template, context);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.resendApiKey}`,
+        Authorization: `Bearer ${this.resendApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

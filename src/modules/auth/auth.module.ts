@@ -54,7 +54,10 @@ import { EmailService } from './email.service';
           },
         },
         defaults: {
-          from: configService.get('MAIL_FROM') || configService.get('EMAIL_USER') || configService.get('MAIL_USER'),
+          from:
+            configService.get('MAIL_FROM') ||
+            configService.get('EMAIL_USER') ||
+            configService.get('MAIL_USER'),
         },
         template: {
           dir: join(process.cwd(), 'src/templates'),
@@ -68,7 +71,13 @@ import { EmailService } from './email.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, EmailService, LocalStrategy, JwtStrategy, ConfigService],
+  providers: [
+    AuthService,
+    EmailService,
+    LocalStrategy,
+    JwtStrategy,
+    ConfigService,
+  ],
   exports: [AuthService, EmailService],
 })
 export class AuthModule {}
