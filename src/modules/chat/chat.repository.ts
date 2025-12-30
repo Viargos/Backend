@@ -117,11 +117,42 @@ export class ChatRepository {
   }
 
   async getConversations(userId: string): Promise<any[]> {
-    // Get all conversations for a user with last message and unread count
+    // 🔄 FIX: Optimized query - get unread counts in a single query
+    const unreadCounts = await this.chatMessageRepo
+      .createQueryBuilder('message')
+      .select('message.senderId', 'senderId')
+      .addSelect('COUNT(*)', 'count')
+      .where('message.receiverId = :userId AND message.isRead = false', {
+        userId,
+      })
+      .groupBy('message.senderId')
+      .getRawMany();
+
+    // Create a map for quick lookup
+    const unreadCountMap = new Map<string, number>();
+    for (const row of unreadCounts) {
+      unreadCountMap.set(row.senderId, parseInt(row.count, 10));
+    }
+
+    // 🔄 FIX: Optimized query - select only needed fields from sender/receiver
     const conversations = await this.chatMessageRepo
       .createQueryBuilder('message')
-      .leftJoinAndSelect('message.sender', 'sender')
-      .leftJoinAndSelect('message.receiver', 'receiver')
+      .leftJoin('message.sender', 'sender')
+      .leftJoin('message.receiver', 'receiver')
+      .addSelect([
+        'sender.id',
+        'sender.username',
+        'sender.email',
+        'sender.profileImage',
+        'sender.isActive',
+      ])
+      .addSelect([
+        'receiver.id',
+        'receiver.username',
+        'receiver.email',
+        'receiver.profileImage',
+        'receiver.isActive',
+      ])
       .where('(message.senderId = :userId OR message.receiverId = :userId)', {
         userId,
       })
@@ -139,7 +170,6 @@ export class ChatRepository {
 
       if (!conversationMap.has(partnerId)) {
         // Create conversation ID in format: userId__partnerId (sorted to ensure consistency)
-        // Using __ as separator to avoid conflicts with UUID hyphens
         const conversationId =
           userId < partnerId
             ? `${userId}__${partnerId}`
@@ -149,26 +179,15 @@ export class ChatRepository {
           id: conversationId,
           user: partner,
           lastMessage: message,
-          unreadCount: 0,
+          unreadCount: unreadCountMap.get(partnerId) || 0,
           updatedAt: message.createdAt,
         });
       }
     }
 
-    // Calculate unread counts
-    for (const [partnerId, conversation] of conversationMap) {
-      const unreadCount = await this.chatMessageRepo.count({
-        where: {
-          senderId: partnerId,
-          receiverId: userId,
-          isRead: false,
-        },
-      });
-      conversation.unreadCount = unreadCount;
-    }
-
     return Array.from(conversationMap.values()).sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
   }
 
@@ -270,10 +289,23 @@ export class ChatRepository {
   ): Promise<ChatMessage[]> {
     const [userId, partnerId] = conversationId.split('__');
 
+    // 🔄 FIX: Optimized query - select only needed fields from sender/receiver
     return this.chatMessageRepo
       .createQueryBuilder('message')
-      .leftJoinAndSelect('message.sender', 'sender')
-      .leftJoinAndSelect('message.receiver', 'receiver')
+      .leftJoin('message.sender', 'sender')
+      .leftJoin('message.receiver', 'receiver')
+      .addSelect([
+        'sender.id',
+        'sender.username',
+        'sender.email',
+        'sender.profileImage',
+      ])
+      .addSelect([
+        'receiver.id',
+        'receiver.username',
+        'receiver.email',
+        'receiver.profileImage',
+      ])
       .where(
         '(message.senderId = :userId AND message.receiverId = :partnerId) OR (message.senderId = :partnerId AND message.receiverId = :userId)',
         { userId, partnerId },

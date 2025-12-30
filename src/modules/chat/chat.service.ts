@@ -209,20 +209,17 @@ export class ChatService {
     limit: number = 50,
     offset: number = 0,
   ): Promise<{ messages: ChatMessage[]; pagination: any }> {
-    const conversation = await this.chatRepository.getConversation(
-      userId,
-      conversationId,
-    );
-    if (!conversation) {
+    // 🔄 FIX: Validate that user is part of the conversation (lightweight check)
+    const [id1, id2] = conversationId.split('__');
+    if (userId !== id1 && userId !== id2) {
       throw new NotFoundException('Conversation not found');
     }
 
-    const messages = await this.chatRepository.getMessages(
-      conversationId,
-      limit,
-      offset,
-    );
-    const total = await this.chatRepository.getMessageCount(conversationId);
+    // 🔄 FIX: Fetch messages and count in parallel for better performance
+    const [messages, total] = await Promise.all([
+      this.chatRepository.getMessages(conversationId, limit, offset),
+      this.chatRepository.getMessageCount(conversationId),
+    ]);
 
     return {
       messages,

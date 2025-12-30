@@ -9,10 +9,12 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { WsJwtAuthGuard } from './guards/ws-jwt-auth.guard';
 import { User } from '../modules/user/entities/user.entity';
 import { ChatService } from 'src/modules/chat/chat.service';
 import { JwtService } from '@nestjs/jwt';
+import { AuthKeyConfig, AuthKeyConfigName } from '../config/authkey.config';
 
 // ✅ NEW: Import logger and constants
 import { Logger } from '../common/utils';
@@ -40,6 +42,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly chatService: ChatService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -115,8 +118,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         throw new Error('No token provided');
       }
 
-      // Validate JWT token
-      const payload = this.jwtService.verify(token);
+      // Get JWT secret from config
+      const jwtSecret =
+        this.configService.get<AuthKeyConfig>(AuthKeyConfigName)?.jwtSecret;
+
+      if (!jwtSecret) {
+        this.logger.error('JWT secret not configured');
+        throw new Error('JWT secret not configured');
+      }
+
+      // Validate JWT token with secret
+      const payload = this.jwtService.verify(token, { secret: jwtSecret });
       if (!payload || !payload.sub) {
         throw new Error('Invalid token - missing sub field');
       }
@@ -416,6 +428,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Helper methods
 
   private broadcastUserStatus(userId: string, isOnline: boolean) {
+    // Emit specific events that frontend expects
+    if (isOnline) {
+      this.server.emit('userOnline', {
+        userId,
+        isOnline: true,
+        lastSeen: new Date(),
+      });
+    } else {
+      this.server.emit('userOffline', {
+        userId,
+        isOnline: false,
+        lastSeen: new Date(),
+      });
+    }
+
+    // Also emit generic user_status for backward compatibility
     this.server.emit('user_status', {
       userId,
       isOnline,
