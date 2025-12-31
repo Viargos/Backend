@@ -569,16 +569,27 @@ export class AuthService {
           email: StringUtil.maskEmail(user.email),
         });
 
-        // Send OTP email (disabled for development)
-        // await this.mailerService.sendMail({
-        //   to: user?.email,
-        //   subject: 'Verify your email address',
-        //   template: 'email-verification',
-        //   context: {
-        //     username: user?.username,
-        //     otp,
-        //   },
-        // });
+        // Send OTP email
+        try {
+          await this.emailService.sendEmail({
+            to: user.email,
+            subject: 'Verify your email address',
+            template: 'email-verification',
+            context: {
+              username: user.username,
+              otp,
+            },
+          });
+
+          this.logger.info('Verification email sent during login attempt', {
+            to: StringUtil.maskEmail(user.email),
+          });
+        } catch (emailError) {
+          this.logger.error('Failed to send verification email during login', {
+            to: StringUtil.maskEmail(user.email),
+            error: emailError.message,
+          });
+        }
 
         throw new UnauthorizedException(ERROR_MESSAGES.AUTH.ACCOUNT_NOT_ACTIVE);
       }
