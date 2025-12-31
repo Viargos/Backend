@@ -183,9 +183,3 @@ export class EmailService {
     return `<p>Hello ${username}, your OTP is: <strong>${otp}</strong></p>`;
   }
 }
-
-
-
-
-
-
