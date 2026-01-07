@@ -15,14 +15,18 @@ export class DatabaseFactory implements TypeOrmOptionsFactory {
     const isDevelopment = serverConfig.nodeEnv === 'development';
 
     Logger.debug(`Configuring database connection for Neon`);
-
+    const dbHost: string = process.env.DB_HOST;
+    const dbPort: number = Number(process.env.DB_PORT);
+    const dbUsername: string = process.env.DB_USER;
+    const dbPassword: string = process.env.DB_PWD;
+    const db: string = process.env.DB_NAME;
     return {
       type: 'postgres',
-      host: 'ep-damp-sky-aerflkll-pooler.c-2.us-east-2.aws.neon.tech',
-      port: 5432,
-      username: 'neondb_owner',
-      password: 'npg_u9Zy3taNKkYP',
-      database: 'neondb',
+      host: dbHost,
+      port: dbPort,
+      username: dbUsername,
+      password: dbPassword,
+      database: db,
       entities: [__dirname + '/../**/*.entity{.ts,.js}'],
       synchronize: false,
       logging: isDevelopment,
