@@ -26,6 +26,7 @@ import { PostService } from './post.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { AddMediaDto } from './dto/add-media.dto';
 import { DashboardPostsDto } from './dto/dashboard-posts.dto';
+import { LikeResponseDto } from './dto/like-response.dto';
 import { Post as PostEntity } from './entities/post.entity';
 import { PostMedia } from './entities/post-media.entity';
 import { PostComment } from './entities/post-comment.entity';
@@ -474,20 +475,23 @@ export class PostController {
   async likePost(
     @Request() req,
     @Param('postId') postId: string,
-  ): Promise<void> {
-    // ✅ NEW: Log like action
-    this.logger.info('User liking post', {
+  ): Promise<LikeResponseDto> {
+    // ✅ NEW: Log like operation
+    this.logger.debug('Liking post', {
       postId,
       userId: req.user.id,
     });
 
-    await this.postService.likePost(postId, req.user);
+    const result = await this.postService.likePost(postId, req.user);
 
     // ✅ NEW: Log success
-    this.logger.info('Post liked successfully', {
+    this.logger.debug('Post liked successfully', {
       postId,
       userId: req.user.id,
+      likeCount: result.likeCount,
     });
+
+    return result;
   }
 
   @Delete(':postId/like')
@@ -498,20 +502,23 @@ export class PostController {
   async unlikePost(
     @Request() req,
     @Param('postId') postId: string,
-  ): Promise<void> {
-    // ✅ NEW: Log unlike action
-    this.logger.info('User unliking post', {
+  ): Promise<LikeResponseDto> {
+    // ✅ NEW: Log unlike operation
+    this.logger.debug('Unliking post', {
       postId,
       userId: req.user.id,
     });
 
-    await this.postService.unlikePost(postId, req.user);
+    const result = await this.postService.unlikePost(postId, req.user);
 
     // ✅ NEW: Log success
-    this.logger.info('Post unliked successfully', {
+    this.logger.debug('Post unliked successfully', {
       postId,
       userId: req.user.id,
+      likeCount: result.likeCount,
     });
+
+    return result;
   }
 
   @Post(':postId/comments')

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, QueryRunner } from 'typeorm';
 import { Post } from './entities/post.entity';
 import { PostMedia } from './entities/post-media.entity';
 import { PostLike } from './entities/post-like.entity';
@@ -8,6 +8,7 @@ import { PostComment } from './entities/post-comment.entity';
 import { AddMediaDto } from './dto/add-media.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { User } from '../user/entities/user.entity';
+import { LikeResponseDto } from './dto/like-response.dto';
 
 @Injectable()
 export class PostRepository {
@@ -22,6 +23,7 @@ export class PostRepository {
     private readonly postLikeRepo: Repository<PostLike>,
     @InjectRepository(PostComment)
     private readonly postCommentRepo: Repository<PostComment>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async createPost(user: User, createPostDto: CreatePostDto): Promise<Post> {
@@ -57,6 +59,17 @@ export class PostRepository {
     return await this.postRepo.findOne({
       where: { id: postId },
       relations: ['user', 'media', 'likes', 'comments', 'journey'],
+    });
+  }
+
+  /**
+   * Lightweight method to get post for like/unlike operations
+   * Only fetches id and likeCount (no relations)
+   */
+  async getPostForLikeOperation(postId: string): Promise<Post> {
+    return await this.postRepo.findOne({
+      where: { id: postId },
+      select: ['id', 'likeCount'],
     });
   }
 
@@ -158,30 +171,134 @@ export class PostRepository {
     return this.getPostById(postId);
   }
 
-  async likePost(post: Post, user: User): Promise<void> {
-    const existingLike = await this.postLikeRepo.findOne({
-      where: { post: { id: post.id }, user: { id: user.id } },
-    });
+  /**
+   * Execute a function within a database transaction
+   * Handles connection, transaction lifecycle, and cleanup
+   */
+  private async executeInTransaction<T>(
+    operation: (queryRunner: QueryRunner) => Promise<T>,
+  ): Promise<T> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    if (!existingLike) {
-      await this.postLikeRepo.save({
-        post,
-        user,
-      });
-
-      await this.postRepo.increment({ id: post.id }, 'likeCount', 1);
+    try {
+      const result = await operation(queryRunner);
+      await queryRunner.commitTransaction();
+      return result;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 
-  async unlikePost(post: Post, user: User): Promise<void> {
-    const result = await this.postLikeRepo.delete({
-      post: { id: post.id },
-      user: { id: user.id },
-    });
+  async likePost(post: Post, user: User): Promise<LikeResponseDto> {
+    try {
+      return await this.executeInTransaction(async (queryRunner) => {
+        // Check if already liked within transaction
+        const existingLike = await queryRunner.manager.findOne(PostLike, {
+          where: { post: { id: post.id }, user: { id: user.id } },
+        });
 
-    if (result.affected > 0) {
-      await this.postRepo.decrement({ id: post.id }, 'likeCount', 1);
+        if (existingLike) {
+          // Already liked - fetch and return actual total count from database
+          const currentPost = await queryRunner.manager.findOne(Post, {
+            where: { id: post.id },
+            select: ['likeCount'],
+          });
+
+          return {
+            success: true,
+            likeCount: currentPost?.likeCount || post.likeCount,
+            isLiked: true,
+          };
+        }
+
+        // Create the like
+        const newLike = queryRunner.manager.create(PostLike, { post, user });
+        await queryRunner.manager.save(newLike);
+
+        // Increment the count atomically
+        await queryRunner.manager.increment(Post, { id: post.id }, 'likeCount', 1);
+
+        // Fetch actual total count from database (source of truth)
+        const updatedPost = await queryRunner.manager.findOne(Post, {
+          where: { id: post.id },
+          select: ['likeCount'],
+        });
+
+        return {
+          success: true,
+          likeCount: updatedPost?.likeCount || 0,
+          isLiked: true,
+        };
+      });
+    } catch (error) {
+      // Handle duplicate key error (unique constraint violation)
+      if (error.code === '23505' || error.message?.includes('duplicate key')) {
+        // Fetch actual count on error
+        const currentPost = await this.postRepo.findOne({
+          where: { id: post.id },
+          select: ['likeCount'],
+        });
+
+        return {
+          success: true,
+          likeCount: currentPost?.likeCount || post.likeCount,
+          isLiked: true,
+        };
+      }
+      throw error;
     }
+  }
+
+  async unlikePost(post: Post, user: User): Promise<LikeResponseDto> {
+    return await this.executeInTransaction(async (queryRunner) => {
+      // Delete the like within transaction
+      const result = await queryRunner.manager.delete(PostLike, {
+        post: { id: post.id },
+        user: { id: user.id },
+      });
+
+      if (result.affected > 0) {
+        // Fetch current count before decrementing
+        const currentPost = await queryRunner.manager.findOne(Post, {
+          where: { id: post.id },
+          select: ['likeCount'],
+        });
+
+        // Only decrement if count is greater than 0 (prevent negative)
+        if (currentPost && currentPost.likeCount > 0) {
+          await queryRunner.manager.decrement(Post, { id: post.id }, 'likeCount', 1);
+        }
+
+        // Fetch actual total count from database (source of truth)
+        const updatedPost = await queryRunner.manager.findOne(Post, {
+          where: { id: post.id },
+          select: ['likeCount'],
+        });
+
+        return {
+          success: true,
+          likeCount: updatedPost?.likeCount || 0,
+          isLiked: false,
+        };
+      }
+
+      // Like didn't exist - fetch and return actual count
+      const currentPost = await queryRunner.manager.findOne(Post, {
+        where: { id: post.id },
+        select: ['likeCount'],
+      });
+
+      return {
+        success: true,
+        likeCount: currentPost?.likeCount || 0,
+        isLiked: false,
+      };
+    });
   }
 
   async addComment(

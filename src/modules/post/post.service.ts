@@ -6,6 +6,7 @@ import {
 import { PostRepository } from './post.repository';
 import { CreatePostDto } from './dto/create-post.dto';
 import { AddMediaDto } from './dto/add-media.dto';
+import { LikeResponseDto } from './dto/like-response.dto';
 import { Post } from './entities/post.entity';
 import { PostMedia } from './entities/post-media.entity';
 import { PostComment } from './entities/post-comment.entity';
@@ -267,57 +268,34 @@ export class PostService {
     return updatedPost;
   }
 
-  async likePost(postId: string, user: User): Promise<void> {
-    const post = await this.postRepository.getPostById(postId);
+  async likePost(postId: string, user: User): Promise<LikeResponseDto> {
+    // Use lightweight query - only fetch id and likeCount
+    const post = await this.postRepository.getPostForLikeOperation(postId);
     if (!post) {
-      // ✅ NEW: Log not found
-      this.logger.warn('Post not found for like', {
-        postId,
-        userId: user.id,
-      });
-      throw new NotFoundException(ERROR_MESSAGES.POST.NOT_FOUND); // ✅ FIXED: Use constant
+      throw new NotFoundException(ERROR_MESSAGES.POST.NOT_FOUND);
     }
 
-    // ✅ NEW: Log like
-    this.logger.info('User liking post', {
-      postId,
-      userId: user.id,
-      postOwnerId: post.user.id,
-    });
+    const result = await this.postRepository.likePost(post, user);
 
-    await this.postRepository.likePost(post, user);
+    // Minimal logging for performance
+    this.logger.debug('Post liked', { postId, userId: user.id });
 
-    // ✅ NEW: Log success
-    this.logger.info('Post liked successfully', {
-      postId,
-      userId: user.id,
-    });
+    return result;
   }
 
-  async unlikePost(postId: string, user: User): Promise<void> {
-    const post = await this.postRepository.getPostById(postId);
+  async unlikePost(postId: string, user: User): Promise<LikeResponseDto> {
+    // Use lightweight query - only fetch id and likeCount
+    const post = await this.postRepository.getPostForLikeOperation(postId);
     if (!post) {
-      // ✅ NEW: Log not found
-      this.logger.warn('Post not found for unlike', {
-        postId,
-        userId: user.id,
-      });
-      throw new NotFoundException(ERROR_MESSAGES.POST.NOT_FOUND); // ✅ FIXED: Use constant
+      throw new NotFoundException(ERROR_MESSAGES.POST.NOT_FOUND);
     }
 
-    // ✅ NEW: Log unlike
-    this.logger.info('User unliking post', {
-      postId,
-      userId: user.id,
-    });
+    const result = await this.postRepository.unlikePost(post, user);
 
-    await this.postRepository.unlikePost(post, user);
+    // Minimal logging for performance
+    this.logger.debug('Post unliked', { postId, userId: user.id });
 
-    // ✅ NEW: Log success
-    this.logger.info('Post unliked successfully', {
-      postId,
-      userId: user.id,
-    });
+    return result;
   }
 
   async addComment(
