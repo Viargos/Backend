@@ -268,6 +268,34 @@ export class PostController {
     };
   }
 
+  @Get('journey/:journeyId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get posts by journey ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Journey posts retrieved successfully',
+    type: [PostEntity],
+  })
+  async getPostsByJourney(
+    @Param('journeyId') journeyId: string,
+    @Request() req,
+  ): Promise<PostEntity[]> {
+    this.logger.info('Fetching posts by journey', {
+      journeyId,
+      userId: req.user.id,
+    });
+
+    const posts = await this.postService.getPostsByJourney(journeyId);
+
+    this.logger.info('Journey posts retrieved', {
+      journeyId,
+      postCount: posts.length,
+    });
+
+    return posts;
+  }
+
   @Get(':postId')
   @ApiOperation({ summary: 'Get a post by ID' })
   @ApiResponse({

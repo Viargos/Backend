@@ -176,6 +176,19 @@ export class PostService {
     return posts;
   }
 
+  async getPostsByJourney(journeyId: string): Promise<Post[]> {
+    this.logger.info('Fetching posts by journey', { journeyId });
+
+    const posts = await this.postRepository.getPostsByJourneyId(journeyId);
+
+    this.logger.info('Journey posts retrieved', {
+      journeyId,
+      postCount: posts.length,
+    });
+
+    return posts;
+  }
+
   async getPostCountByUser(userId: string): Promise<number> {
     const count = await this.postRepository.getPostCountByUserId(userId);
 

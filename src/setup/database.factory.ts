@@ -28,7 +28,7 @@ export class DatabaseFactory implements TypeOrmOptionsFactory {
       password: dbPassword,
       database: db,
       entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-      synchronize: false,
+      synchronize: isDevelopment, // Auto-create tables in development only
       logging: isDevelopment,
       ssl: {
         rejectUnauthorized: false,

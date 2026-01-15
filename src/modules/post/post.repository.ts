@@ -136,6 +136,16 @@ export class PostRepository {
     });
   }
 
+  async getPostsByJourneyId(journeyId: string): Promise<Post[]> {
+    this.logger.debug('getPostsByJourneyId called', { journeyId });
+
+    return await this.postRepo.find({
+      where: { journeyId },
+      relations: ['user', 'media', 'likes', 'comments', 'journey'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async getPostCountByUserId(userId: string): Promise<number> {
     return await this.postRepo.count({
       where: { user: { id: userId } },

@@ -118,7 +118,7 @@ export class UserRepository {
         page = 1,
         limit = 10,
         sortBy = 'createdAt',
-        sortOrder = 'DESC'
+        sortOrder = 'DESC',
       } = searchDto;
 
       const queryBuilder = this.userRepo.createQueryBuilder('user');
@@ -127,29 +127,29 @@ export class UserRepository {
       if (search) {
         queryBuilder.andWhere(
           '(LOWER(user.username) LIKE LOWER(:search) OR ' +
-          'LOWER(user.email) LIKE LOWER(:search) OR ' +
-          'LOWER(user.bio) LIKE LOWER(:search) OR ' +
-          'LOWER(user.location) LIKE LOWER(:search))',
-          { search: `%${search}%` }
+            'LOWER(user.email) LIKE LOWER(:search) OR ' +
+            'LOWER(user.bio) LIKE LOWER(:search) OR ' +
+            'LOWER(user.location) LIKE LOWER(:search))',
+          { search: `%${search}%` },
         );
       }
 
       // Specific field filters
       if (username) {
         queryBuilder.andWhere('LOWER(user.username) LIKE LOWER(:username)', {
-          username: `%${username}%`
+          username: `%${username}%`,
         });
       }
 
       if (email) {
         queryBuilder.andWhere('LOWER(user.email) LIKE LOWER(:email)', {
-          email: `%${email}%`
+          email: `%${email}%`,
         });
       }
 
       if (location) {
         queryBuilder.andWhere('LOWER(user.location) LIKE LOWER(:location)', {
-          location: `%${location}%`
+          location: `%${location}%`,
         });
       }
 
@@ -169,7 +169,7 @@ export class UserRepository {
         'user.location',
         'user.isActive',
         'user.createdAt',
-        'user.updatedAt'
+        'user.updatedAt',
       ]);
 
       // Sorting
@@ -192,7 +192,7 @@ export class UserRepository {
         total,
         page,
         limit,
-        totalPages
+        totalPages,
       };
     } catch (error) {
       this.logger.error(
@@ -203,17 +203,20 @@ export class UserRepository {
     }
   }
 
-  async searchUsersByTerm(searchTerm: string, limit: number = 10): Promise<User[]> {
+  async searchUsersByTerm(
+    searchTerm: string,
+    limit: number = 10,
+  ): Promise<User[]> {
     try {
       const queryBuilder = this.userRepo.createQueryBuilder('user');
-      
+
       queryBuilder
         .where(
           '(LOWER(user.username) LIKE LOWER(:searchTerm) OR ' +
-          'LOWER(user.email) LIKE LOWER(:searchTerm) OR ' +
-          'LOWER(user.bio) LIKE LOWER(:searchTerm) OR ' +
-          'LOWER(user.location) LIKE LOWER(:searchTerm))',
-          { searchTerm: `%${searchTerm}%` }
+            'LOWER(user.email) LIKE LOWER(:searchTerm) OR ' +
+            'LOWER(user.bio) LIKE LOWER(:searchTerm) OR ' +
+            'LOWER(user.location) LIKE LOWER(:searchTerm))',
+          { searchTerm: `%${searchTerm}%` },
         )
         .select([
           'user.id',
@@ -226,7 +229,7 @@ export class UserRepository {
           'user.location',
           'user.isActive',
           'user.createdAt',
-          'user.updatedAt'
+          'user.updatedAt',
         ])
         .orderBy('user.createdAt', 'DESC')
         .limit(limit);
