@@ -37,17 +37,17 @@ export class NearbyJourneysDto {
 
   @ApiProperty({
     description: 'Search radius in kilometers',
-    example: 50,
+    example: 500,
     minimum: 0.1,
-    maximum: 500,
+    maximum: 20000, // Increased for global discovery (half of Earth's circumference)
     required: false,
   })
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
   @Min(0.1)
-  @Max(500)
-  radius?: number = 10; // Default 10km radius
+  @Max(20000)
+  radius?: number = 500; // Default 500km radius
 
   @ApiProperty({
     description: 'Maximum number of results to return',
