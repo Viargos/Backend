@@ -105,79 +105,203 @@ export class EmailService {
 
   private generateEmailHtml(template: string, context: any): string {
     const { username, otp } = context;
+    const currentYear = new Date().getFullYear();
 
     if (template === 'email-verification') {
-      return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
-            .content { background-color: #f9fafb; padding: 30px; }
-            .otp-box { background-color: white; border: 2px solid #4F46E5; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-            .otp-code { font-size: 32px; font-weight: bold; color: #4F46E5; letter-spacing: 5px; }
-            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Verify Your Email</h1>
-            </div>
-            <div class="content">
-              <p>Hello ${username || 'there'},</p>
-              <p>Thank you for signing up! Please use the following OTP code to verify your email address:</p>
-              <div class="otp-box">
-                <div class="otp-code">${otp}</div>
-              </div>
-              <p>This code will expire in 10 minutes.</p>
-              <p>If you didn't request this code, please ignore this email.</p>
-            </div>
-            <div class="footer">
-              <p>© 2025 Viargos. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
+      return `<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Verify your email</title>
+    <style>
+      html, body { margin:0 !important; padding:0 !important; height:100% !important; width:100% !important; }
+      * { -ms-text-size-adjust:100%; -webkit-text-size-adjust:100%; }
+      table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; border-collapse:collapse !important; }
+      img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; }
+      a { text-decoration:none; }
+      @media screen and (max-width:600px) {
+        .px { padding-left:20px !important; padding-right:20px !important; }
+        .py { padding-top:20px !important; padding-bottom:20px !important; }
+        .h1 { font-size:24px !important; line-height:30px !important; }
+        .otp-code { font-size:24px !important; letter-spacing:5px !important; }
+        .hero { padding:22px 20px !important; }
+      }
+      @media (prefers-color-scheme: dark) {
+        .container { background:#0B0D14 !important; }
+        .card { background:#0F121A !important; border-color:#1C2233 !important; }
+        .h1 { color:#EEF0FF !important; }
+        .p { color:#D6DBE8 !important; }
+        .muted { color:#98A2B3 !important; }
+        .divider { background:#1C2233 !important; }
+        .otp-wrap { background:#131724 !important; border-color:#1C2233 !important; }
+        .otp-code { color:#DDE1FF !important; }
+        .note { background:#121826 !important; border-color:#1C2233 !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background:#F3F4F8;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; background:#F3F4F8;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; max-width:640px; margin:0 auto;">
+            <tr>
+              <td style="padding:10px 6px 16px 6px;">
+                <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-weight:800; font-size:14px; letter-spacing:0.2px; color:#160E53;">
+                  Viargos
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#FFFFFF; border-radius:20px; border:1px solid #E7EAF0; overflow:hidden;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="background:linear-gradient(135deg, #160E53 0%, #241A7A 55%, #2D1F7A 100%); color:#FFFFFF; padding:28px 32px;">
+                      <div style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#D6D9FF; font-weight:700;">Email verification</div>
+                      <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:30px; line-height:36px; font-weight:800; color:#FFFFFF; margin:8px 0 0 0;">Verify your email</h1>
+                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#E8E9FF; margin:8px 0 0 0;">
+                        Hi ${username || 'there'}, verify your email to secure your Viargos account.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:28px 32px;">
+                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#1F2937; margin:0;">
+                        Use the code below to complete verification. This code expires in <strong>10 minutes</strong>.
+                      </p>
+                      <div style="margin:18px 0 10px 0;">
+                        <div style="background:#F6F7FB; border-radius:16px; border:1px solid #E6E8F2; padding:18px; text-align:center;">
+                          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:12px; font-weight:700; color:#4C5BD4; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 10px 0;">Verification code</p>
+                          <p style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace; font-size:30px; letter-spacing:6px; font-weight:800; color:#160E53; margin:0;">${otp}</p>
+                        </div>
+                      </div>
+                      <div style="background:#F9FAFB; border:1px solid #E7EAF0; border-radius:12px; padding:12px 14px; margin-top:14px;">
+                        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                          If you did not request this, you can safely ignore this email. Never share this code with anyone.
+                        </p>
+                      </div>
+                      <div style="height:1px; background:#E7EAF0; width:100%; margin:22px 0 14px 0;"></div>
+                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                        This is an automated message. If you need help, contact our support team.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 6px 0 6px;">
+                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                  © ${currentYear} Viargos. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
     } else if (template === 'password-reset') {
-      return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #DC2626; color: white; padding: 20px; text-align: center; }
-            .content { background-color: #f9fafb; padding: 30px; }
-            .otp-box { background-color: white; border: 2px solid #DC2626; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-            .otp-code { font-size: 32px; font-weight: bold; color: #DC2626; letter-spacing: 5px; }
-            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Password Reset Request</h1>
-            </div>
-            <div class="content">
-              <p>Hello ${username || 'there'},</p>
-              <p>We received a request to reset your password. Please use the following OTP code:</p>
-              <div class="otp-box">
-                <div class="otp-code">${otp}</div>
-              </div>
-              <p>This code will expire in 10 minutes.</p>
-              <p>If you didn't request this password reset, please ignore this email and your password will remain unchanged.</p>
-            </div>
-            <div class="footer">
-              <p>© 2025 Viargos. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
+      return `<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Reset your password</title>
+    <style>
+      html, body { margin:0 !important; padding:0 !important; height:100% !important; width:100% !important; }
+      * { -ms-text-size-adjust:100%; -webkit-text-size-adjust:100%; }
+      table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; border-collapse:collapse !important; }
+      img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; }
+      a { text-decoration:none; }
+      @media screen and (max-width:600px) {
+        .px { padding-left:20px !important; padding-right:20px !important; }
+        .py { padding-top:20px !important; padding-bottom:20px !important; }
+        .h1 { font-size:24px !important; line-height:30px !important; }
+        .otp-code { font-size:24px !important; letter-spacing:5px !important; }
+        .hero { padding:22px 20px !important; }
+      }
+      @media (prefers-color-scheme: dark) {
+        .container { background:#0B0D14 !important; }
+        .card { background:#0F121A !important; border-color:#1C2233 !important; }
+        .h1 { color:#EEF0FF !important; }
+        .p { color:#D6DBE8 !important; }
+        .muted { color:#98A2B3 !important; }
+        .divider { background:#1C2233 !important; }
+        .otp-wrap { background:#131724 !important; border-color:#1C2233 !important; }
+        .otp-code { color:#DDE1FF !important; }
+        .warning { background:#2A1414 !important; border-color:#7F1D1D !important; }
+        .warning-text { color:#FCA5A5 !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background:#F3F4F8;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; background:#F3F4F8;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; max-width:640px; margin:0 auto;">
+            <tr>
+              <td style="padding:10px 6px 16px 6px;">
+                <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-weight:800; font-size:14px; letter-spacing:0.2px; color:#160E53;">
+                  Viargos
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#FFFFFF; border-radius:20px; border:1px solid #E7EAF0; overflow:hidden;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="background:linear-gradient(135deg, #160E53 0%, #241A7A 50%, #3A1F7A 100%); color:#FFFFFF; padding:28px 32px;">
+                      <div style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#FFD6D6; font-weight:700;">Password reset</div>
+                      <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:30px; line-height:36px; font-weight:800; color:#FFFFFF; margin:8px 0 0 0;">Reset your password</h1>
+                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#E8E9FF; margin:8px 0 0 0;">
+                        Hi ${username || 'there'}, we received a request to reset your password.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:28px 32px;">
+                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#1F2937; margin:0;">
+                        Use the code below to continue. This code expires in <strong>10 minutes</strong>.
+                      </p>
+                      <div style="margin:18px 0 10px 0;">
+                        <div style="background:#F6F7FB; border-radius:16px; border:1px solid #E6E8F2; padding:18px; text-align:center;">
+                          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:12px; font-weight:700; color:#4C5BD4; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 10px 0;">Password reset code</p>
+                          <p style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace; font-size:30px; letter-spacing:6px; font-weight:800; color:#160E53; margin:0;">${otp}</p>
+                        </div>
+                      </div>
+                      <div style="background:#FFF5F5; border:1px solid #FECACA; padding:12px 14px; border-radius:12px; margin-top:16px;">
+                        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#7F1D1D; margin:0;">
+                          If you did not request a password reset, you can safely ignore this email. Never share this code with anyone.
+                        </p>
+                      </div>
+                      <div style="height:1px; background:#E7EAF0; width:100%; margin:22px 0 14px 0;"></div>
+                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                        This is an automated message. If you need help, contact our support team.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 6px 0 6px;">
+                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                  © ${currentYear} Viargos. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
     }
 
     return `<p>Hello ${username}, your OTP is: <strong>${otp}</strong></p>`;
