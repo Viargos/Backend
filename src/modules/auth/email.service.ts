@@ -132,24 +132,28 @@ export class EmailService {
       @media (prefers-color-scheme: dark) {
         .container { background:#0B0D14 !important; }
         .card { background:#0F121A !important; border-color:#1C2233 !important; }
-        .h1 { color:#EEF0FF !important; }
-        .p { color:#D6DBE8 !important; }
-        .muted { color:#98A2B3 !important; }
+        .logo { color:#FFFFFF !important; }
+        .h1 { color:#FFFFFF !important; }
+        .p, .p-content { color:#FFFFFF !important; }
+        .muted { color:#E5E7EB !important; }
         .divider { background:#1C2233 !important; }
-        .otp-wrap { background:#131724 !important; border-color:#1C2233 !important; }
-        .otp-code { color:#DDE1FF !important; }
-        .note { background:#121826 !important; border-color:#1C2233 !important; }
+        .otp-wrap { background:#1A1D2E !important; border-color:#2D3348 !important; }
+        .otp-label { color:#FFFFFF !important; }
+        .otp-code { color:#FFFFFF !important; }
+        .note { background:#1A1D2E !important; border-color:#2D3348 !important; }
+        .note-text { color:#E5E7EB !important; }
+        .footer-text { color:#E5E7EB !important; }
       }
     </style>
   </head>
   <body style="margin:0; padding:0; background:#F3F4F8;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; background:#F3F4F8;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; background:#F3F4F8;" class="container">
       <tr>
         <td align="center" style="padding:24px 12px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; max-width:640px; margin:0 auto;">
             <tr>
               <td style="padding:10px 6px 16px 6px;">
-                <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-weight:800; font-size:14px; letter-spacing:0.2px; color:#160E53;">
+                <div class="logo" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-weight:800; font-size:14px; letter-spacing:0.2px; color:#160E53;">
                   Viargos
                 </div>
               </td>
@@ -168,22 +172,22 @@ export class EmailService {
                   </tr>
                   <tr>
                     <td style="padding:28px 32px;">
-                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#1F2937; margin:0;">
+                      <p class="p-content" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#1F2937; margin:0;">
                         Use the code below to complete verification. This code expires in <strong>10 minutes</strong>.
                       </p>
                       <div style="margin:18px 0 10px 0;">
-                        <div style="background:#F6F7FB; border-radius:16px; border:1px solid #E6E8F2; padding:18px; text-align:center;">
-                          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:12px; font-weight:700; color:#4C5BD4; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 10px 0;">Verification code</p>
-                          <p style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace; font-size:30px; letter-spacing:6px; font-weight:800; color:#160E53; margin:0;">${otp}</p>
+                        <div class="otp-wrap" style="background:#F6F7FB; border-radius:16px; border:1px solid #E6E8F2; padding:18px; text-align:center;">
+                          <p class="otp-label" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:12px; font-weight:700; color:#4C5BD4; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 10px 0;">Verification code</p>
+                          <p class="otp-code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace; font-size:30px; letter-spacing:6px; font-weight:800; color:#160E53; margin:0;">${otp}</p>
                         </div>
                       </div>
-                      <div style="background:#F9FAFB; border:1px solid #E7EAF0; border-radius:12px; padding:12px 14px; margin-top:14px;">
-                        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                      <div class="note" style="background:#F9FAFB; border:1px solid #E7EAF0; border-radius:12px; padding:12px 14px; margin-top:14px;">
+                        <p class="note-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
                           If you did not request this, you can safely ignore this email. Never share this code with anyone.
                         </p>
                       </div>
-                      <div style="height:1px; background:#E7EAF0; width:100%; margin:22px 0 14px 0;"></div>
-                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                      <div class="divider" style="height:1px; background:#E7EAF0; width:100%; margin:22px 0 14px 0;"></div>
+                      <p class="footer-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
                         This is an automated message. If you need help, contact our support team.
                       </p>
                     </td>
@@ -193,7 +197,7 @@ export class EmailService {
             </tr>
             <tr>
               <td style="padding:14px 6px 0 6px;">
-                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                <p class="footer-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
                   © ${currentYear} Viargos. All rights reserved.
                 </p>
               </td>
@@ -229,31 +233,34 @@ export class EmailService {
       @media (prefers-color-scheme: dark) {
         .container { background:#0B0D14 !important; }
         .card { background:#0F121A !important; border-color:#1C2233 !important; }
-        .h1 { color:#EEF0FF !important; }
-        .p { color:#D6DBE8 !important; }
-        .muted { color:#98A2B3 !important; }
+        .logo { color:#FFFFFF !important; }
+        .h1 { color:#FFFFFF !important; }
+        .p, .p-content { color:#FFFFFF !important; }
+        .muted { color:#E5E7EB !important; }
         .divider { background:#1C2233 !important; }
-        .otp-wrap { background:#131724 !important; border-color:#1C2233 !important; }
-        .otp-code { color:#DDE1FF !important; }
-        .warning { background:#2A1414 !important; border-color:#7F1D1D !important; }
-        .warning-text { color:#FCA5A5 !important; }
+        .otp-wrap { background:#1A1D2E !important; border-color:#2D3348 !important; }
+        .otp-label { color:#FFFFFF !important; }
+        .otp-code { color:#FFFFFF !important; }
+        .warning { background:#3D1F1F !important; border-color:#7F1D1D !important; }
+        .warning-text { color:#FFFFFF !important; }
+        .footer-text { color:#E5E7EB !important; }
       }
     </style>
   </head>
   <body style="margin:0; padding:0; background:#F3F4F8;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; background:#F3F4F8;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; background:#F3F4F8;" class="container">
       <tr>
         <td align="center" style="padding:24px 12px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%; max-width:640px; margin:0 auto;">
             <tr>
               <td style="padding:10px 6px 16px 6px;">
-                <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-weight:800; font-size:14px; letter-spacing:0.2px; color:#160E53;">
+                <div class="logo" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-weight:800; font-size:14px; letter-spacing:0.2px; color:#160E53;">
                   Viargos
                 </div>
               </td>
             </tr>
             <tr>
-              <td style="background:#FFFFFF; border-radius:20px; border:1px solid #E7EAF0; overflow:hidden;">
+              <td class="card" style="background:#FFFFFF; border-radius:20px; border:1px solid #E7EAF0; overflow:hidden;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                   <tr>
                     <td style="background:linear-gradient(135deg, #160E53 0%, #241A7A 50%, #3A1F7A 100%); color:#FFFFFF; padding:28px 32px;">
@@ -266,22 +273,22 @@ export class EmailService {
                   </tr>
                   <tr>
                     <td style="padding:28px 32px;">
-                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#1F2937; margin:0;">
+                      <p class="p-content" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:16px; line-height:24px; color:#1F2937; margin:0;">
                         Use the code below to continue. This code expires in <strong>10 minutes</strong>.
                       </p>
                       <div style="margin:18px 0 10px 0;">
-                        <div style="background:#F6F7FB; border-radius:16px; border:1px solid #E6E8F2; padding:18px; text-align:center;">
-                          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:12px; font-weight:700; color:#4C5BD4; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 10px 0;">Password reset code</p>
-                          <p style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace; font-size:30px; letter-spacing:6px; font-weight:800; color:#160E53; margin:0;">${otp}</p>
+                        <div class="otp-wrap" style="background:#F6F7FB; border-radius:16px; border:1px solid #E6E8F2; padding:18px; text-align:center;">
+                          <p class="otp-label" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:12px; font-weight:700; color:#4C5BD4; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 10px 0;">Password reset code</p>
+                          <p class="otp-code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace; font-size:30px; letter-spacing:6px; font-weight:800; color:#160E53; margin:0;">${otp}</p>
                         </div>
                       </div>
-                      <div style="background:#FFF5F5; border:1px solid #FECACA; padding:12px 14px; border-radius:12px; margin-top:16px;">
-                        <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#7F1D1D; margin:0;">
+                      <div class="warning" style="background:#FFF5F5; border:1px solid #FECACA; padding:12px 14px; border-radius:12px; margin-top:16px;">
+                        <p class="warning-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#7F1D1D; margin:0;">
                           If you did not request a password reset, you can safely ignore this email. Never share this code with anyone.
                         </p>
                       </div>
-                      <div style="height:1px; background:#E7EAF0; width:100%; margin:22px 0 14px 0;"></div>
-                      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                      <div class="divider" style="height:1px; background:#E7EAF0; width:100%; margin:22px 0 14px 0;"></div>
+                      <p class="footer-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
                         This is an automated message. If you need help, contact our support team.
                       </p>
                     </td>
@@ -291,7 +298,7 @@ export class EmailService {
             </tr>
             <tr>
               <td style="padding:14px 6px 0 6px;">
-                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
+                <p class="footer-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif; font-size:13px; line-height:19px; color:#667085; margin:0;">
                   © ${currentYear} Viargos. All rights reserved.
                 </p>
               </td>
