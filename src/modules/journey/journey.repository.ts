@@ -185,8 +185,145 @@ export class JourneyRepository {
     id: string,
     updateJourneyDto: UpdateJourneyDto,
   ): Promise<Journey> {
-    await this.journeyRepo.update(id, updateJourneyDto);
-    return this.findOneById(id);
+    console.log('[JOURNEY_UPDATE] Starting update for journey:', id);
+    console.log('[JOURNEY_UPDATE] Update DTO:', JSON.stringify(updateJourneyDto));
+
+    // Check if we have nested days to update
+    const { days, ...topLevelFields } = updateJourneyDto as any;
+
+    // Use a transaction to ensure atomicity
+    return await this.dataSource.transaction(async (manager) => {
+      // Step 1: Update top-level fields (title, description, coverImage)
+      if (Object.keys(topLevelFields).length > 0) {
+        console.log('[JOURNEY_UPDATE] Updating top-level fields:', topLevelFields);
+        await manager.update('journey', id, topLevelFields);
+      }
+
+      // Step 2: If days are provided, replace existing days with new ones
+      if (days && Array.isArray(days) && days.length > 0) {
+        console.log('[JOURNEY_UPDATE] Processing days update, count:', days.length);
+
+        // Delete existing media first (innermost relation)
+        // Note: journey_media uses snake_case column name as defined in entity
+        await manager.query(
+          `DELETE FROM journey_media 
+           WHERE "journey_day_place_id" IN (
+             SELECT jdp.id FROM journey_day_place jdp
+             INNER JOIN journey_day jd ON jdp."journeyDayId" = jd.id
+             WHERE jd."journeyId" = $1
+           )`,
+          [id],
+        );
+        console.log('[JOURNEY_UPDATE] Deleted existing media');
+
+        // Delete existing places
+        await manager.query(
+          `DELETE FROM journey_day_place 
+           WHERE "journeyDayId" IN (
+             SELECT id FROM journey_day WHERE "journeyId" = $1
+           )`,
+          [id],
+        );
+        console.log('[JOURNEY_UPDATE] Deleted existing places');
+
+        // Delete existing days
+        await manager.query(
+          `DELETE FROM journey_day WHERE "journeyId" = $1`,
+          [id],
+        );
+        console.log('[JOURNEY_UPDATE] Deleted existing days');
+
+        // Now create new days with places and media
+        for (const day of days) {
+          console.log('[JOURNEY_UPDATE] Creating day:', day.dayNumber);
+
+          // Insert the day
+          const dayResult = await manager.query(
+            `INSERT INTO journey_day ("dayNumber", "date", "notes", "journeyId")
+             VALUES ($1, $2, $3, $4)
+             RETURNING id`,
+            [day.dayNumber, day.date, day.notes || null, id],
+          );
+          const dayId = dayResult[0].id;
+          console.log('[JOURNEY_UPDATE] Created day with id:', dayId);
+
+          // Insert places for this day
+          if (day.places && Array.isArray(day.places)) {
+            for (const place of day.places) {
+              // Handle photos/images legacy fields
+              const anyPlace = place as any;
+              const photos: string[] = anyPlace.photos || anyPlace.images || [];
+              const explicitMedia = Array.isArray(anyPlace.media) ? anyPlace.media : [];
+
+              // Insert the place
+              const placeResult = await manager.query(
+                `INSERT INTO journey_day_place 
+                 ("type", "name", "description", "address", "latitude", "longitude", "startTime", "endTime", "journeyDayId")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 RETURNING id`,
+                [
+                  place.type,
+                  place.name,
+                  place.description || null,
+                  place.address || null,
+                  place.latitude || null,
+                  place.longitude || null,
+                  place.startTime || null,
+                  place.endTime || null,
+                  dayId,
+                ],
+              );
+              const placeId = placeResult[0].id;
+              console.log('[JOURNEY_UPDATE] Created place:', place.name, 'with id:', placeId);
+
+              // Create media from photos (legacy support)
+              const mediaFromPhotos = Array.isArray(photos)
+                ? photos.map((url, index) => ({
+                    type: JourneyMediaType.IMAGE,
+                    url,
+                    order: index,
+                  }))
+                : [];
+
+              const combinedMedia = [...explicitMedia, ...mediaFromPhotos];
+
+              // Insert media for this place
+              // Note: journey_media uses snake_case column names as defined in entity
+              for (const media of combinedMedia) {
+                await manager.query(
+                  `INSERT INTO journey_media 
+                   ("type", "url", "thumbnailUrl", "duration", "order", "journey_day_place_id")
+                   VALUES ($1, $2, $3, $4, $5, $6)`,
+                  [
+                    media.type || JourneyMediaType.IMAGE,
+                    media.url,
+                    media.thumbnailUrl || null,
+                    media.duration || null,
+                    media.order || 0,
+                    placeId,
+                  ],
+                );
+              }
+
+              if (combinedMedia.length > 0) {
+                console.log('[JOURNEY_UPDATE] Created', combinedMedia.length, 'media items for place:', place.name);
+              }
+            }
+          }
+        }
+
+        console.log('[JOURNEY_UPDATE] Days update completed');
+      }
+
+      // Return the updated journey with all relations
+      const updatedJourney = await manager.findOne(Journey, {
+        where: { id },
+        relations: ['days', 'days.places', 'days.places.media'],
+      });
+
+      console.log('[JOURNEY_UPDATE] Update completed successfully');
+      return updatedJourney;
+    });
   }
 
   async removeJourney(id: string): Promise<void> {
