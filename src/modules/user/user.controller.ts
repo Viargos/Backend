@@ -286,6 +286,31 @@ export class UserController {
     return new UserDto(user);
   }
 
+  @Patch('profile')
+  @ApiOperation({
+    summary: 'Update current user profile',
+    description: 'Updates the authenticated user\'s profile information',
+  })
+  async updateProfile(
+    @Request() req: { user: User },
+    @Body() updateUserDto: UpdateUserDto,
+  ): Promise<UserDto> {
+    // ✅ NEW: Log profile update
+    this.logger.info('Updating user profile', {
+      userId: req.user.id,
+      fieldsToUpdate: Object.keys(updateUserDto),
+    });
+
+    const updatedUser = await this.userService.updateUser(req.user.id, updateUserDto);
+
+    // ✅ NEW: Log success
+    this.logger.info('User profile updated successfully', {
+      userId: req.user.id,
+    });
+
+    return new UserDto(updatedUser);
+  }
+
   @Patch(':id')
   @ApiOperation({
     summary: 'Update user',

@@ -9,7 +9,8 @@ import { WinstonLogger } from '../setup/winston.logger';
 @Module({
   imports: [ConfigModule],
   providers: [
-    { provide: APP_INTERCEPTOR, useClass: ResponseTransformer },
+    // ❌ REMOVED: Old ResponseTransformer - replaced by TransformInterceptor in main.ts
+    // { provide: APP_INTERCEPTOR, useClass: ResponseTransformer },
     { provide: APP_INTERCEPTOR, useClass: ResponseValidation },
     { provide: APP_FILTER, useClass: ExceptionHandler },
     {

@@ -1,9 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { UserRepository } from 'src/modules/user/user.repository';
-import { ERROR_MESSAGES } from 'src/common/constants';
+import { ERROR_MESSAGES, COOKIE_NAMES } from 'src/common/constants';
 
 // Narrowed payload type to the fields this strategy actually depends on
 interface JwtPayload {
@@ -12,6 +13,17 @@ interface JwtPayload {
   [key: string]: unknown;
 }
 
+/**
+ * Custom cookie extractor for access token
+ * Extracts JWT from cookies (for SSR requests from Next.js Server Components)
+ */
+const cookieExtractor = (req: Request): string | null => {
+  if (req && req.cookies) {
+    return req.cookies[COOKIE_NAMES.ACCESS_TOKEN] || null;
+  }
+  return null;
+};
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -19,7 +31,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly usersRepo: UserRepository,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Extract JWT from BOTH cookies (for SSR) AND Authorization header (for API clients)
+      // Tries cookies first, then falls back to Bearer token
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        cookieExtractor,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET'),
     });

@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import serverConfig from './config/server.config';
 import databaseConfig from './config/database.config';
 import tokenConfig from './config/token.config';
+import cookieConfig from './config/cookie.config';
 import { CoreModule } from './core/core.module';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -18,10 +20,16 @@ import authkeyConfig from './config/authkey.config';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      load: [serverConfig, databaseConfig, tokenConfig, authkeyConfig],
+      load: [serverConfig, databaseConfig, tokenConfig, authkeyConfig, cookieConfig],
       cache: true,
       envFilePath: getEnvFilePath(),
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minute
+        limit: 10, // 10 requests per minute
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useClass: DatabaseFactory,

@@ -14,6 +14,7 @@ import { SignUpDto } from './dto/signup.dto';
 import { UserRepository } from '../user/user.repository';
 import { ConfigService } from '@nestjs/config';
 import { AuthKeyConfig, AuthKeyConfigName } from 'src/config/authkey.config';
+import { TokenConfig, TokenConfigName } from 'src/config/token.config';
 import { OtpHelper } from 'src/utils/otp.helper';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -23,10 +24,13 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { EmailService } from './email.service';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { hashRefreshToken, compareRefreshToken } from './utils/token.util';
+import { v4 as uuidv4 } from 'uuid';
 
 // ✅ NEW: Import utilities and constants
 import { Logger, CryptoUtil, DateUtil, StringUtil } from '../../common/utils';
-import { ERROR_MESSAGES, SUCCESS_MESSAGES, TIME } from '../../common/constants';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, TIME, AUTH_ERROR_CODES } from '../../common/constants';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +42,8 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepo: Repository<RefreshToken>,
     private readonly jwtService: JwtService,
     private readonly userRepository: UserRepository,
     private readonly userOtpRepository: UserOtpRepository,
@@ -185,7 +191,7 @@ export class AuthService {
   // Verify OTP
   async verifyOtp(
     verifyOtpDto: VerifyOtpDto,
-  ): Promise<{ message: string; accessToken?: string }> {
+  ): Promise<{ message: string; accessToken?: string; user?: User }> {
     try {
       const { email, otp } = verifyOtpDto;
 
@@ -251,6 +257,9 @@ export class AuthService {
           isActive: true,
         });
 
+        // Reload user to get updated isActive status
+        const updatedUser = await this.userRepository.getUserById(user.id);
+
         // ✅ NEW: Log successful verification
         this.logger.info('Email verified successfully', {
           userId: user.id,
@@ -260,6 +269,7 @@ export class AuthService {
         return {
           message: SUCCESS_MESSAGES.AUTH.EMAIL_VERIFIED,
           accessToken,
+          user: updatedUser, // Return user for cookie setting
         };
       }
 
@@ -272,6 +282,7 @@ export class AuthService {
       return {
         message: SUCCESS_MESSAGES.AUTH.OTP_VERIFIED,
         accessToken,
+        // Don't return user for password reset - token is short-lived
       };
     } catch (error) {
       // ✅ NEW: Better error logging
@@ -650,5 +661,248 @@ export class AuthService {
 
   async signin(user: User) {
     return this.signIn(user);
+  }
+
+  /**
+   * Generate access and refresh tokens for a user
+   */
+  async generateTokens(
+    user: User,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    try {
+      const tokenConfig = this.configService.getOrThrow<TokenConfig>(
+        TokenConfigName,
+      );
+
+      // Generate tokenId for refresh token
+      const tokenId = uuidv4();
+
+      // Create access token payload
+      const accessPayload = {
+        sub: user.id,
+        email: user.email,
+        username: user.username,
+      };
+
+      // Create refresh token payload
+      const refreshPayload = {
+        sub: user.id,
+        tokenId,
+      };
+
+      // Sign tokens
+      const accessToken = this.jwtService.sign(accessPayload, {
+        secret: tokenConfig.jwtAccessSecret,
+        expiresIn: tokenConfig.jwtAccessExpiration,
+      });
+
+      const refreshToken = this.jwtService.sign(refreshPayload, {
+        secret: tokenConfig.jwtRefreshSecret,
+        expiresIn: tokenConfig.jwtRefreshExpiration,
+      });
+
+      // Hash refresh token before storing
+      const tokenHash = await hashRefreshToken(refreshToken);
+
+      // Calculate expiration date
+      const expiresAt = new Date();
+      expiresAt.setSeconds(
+        expiresAt.getSeconds() + tokenConfig.refreshTokenValidity,
+      );
+
+      // Store refresh token in database
+      const refreshTokenEntity = this.refreshTokenRepo.create({
+        userId: user.id,
+        tokenHash,
+        tokenId,
+        expiresAt,
+        userAgent: userAgent || null,
+        ipAddress: ipAddress || null,
+      });
+
+      await this.refreshTokenRepo.save(refreshTokenEntity);
+
+      this.logger.info('Tokens generated successfully', {
+        userId: user.id,
+        email: StringUtil.maskEmail(user.email),
+      });
+
+      return { accessToken, refreshToken };
+    } catch (error) {
+      this.logger.exception(error, {
+        context: 'generateTokens',
+        userId: user.id,
+      });
+      throw new InternalServerErrorException('Failed to generate tokens');
+    }
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ accessToken: string }> {
+    try {
+      const tokenConfig = this.configService.getOrThrow<TokenConfig>(
+        TokenConfigName,
+      );
+
+      // Verify refresh token signature and expiration
+      let decoded: any;
+      try {
+        decoded = this.jwtService.verify(refreshToken, {
+          secret: tokenConfig.jwtRefreshSecret,
+        });
+      } catch (error) {
+        if (error.name === 'TokenExpiredError') {
+          throw new UnauthorizedException('REFRESH_EXPIRED');
+        }
+        throw new UnauthorizedException('REFRESH_INVALID');
+      }
+
+      const { sub: userId, tokenId } = decoded;
+
+      // Find refresh token in database by tokenId
+      const refreshTokenEntity = await this.refreshTokenRepo.findOne({
+        where: { tokenId },
+        relations: ['user'],
+      });
+
+      if (!refreshTokenEntity) {
+        throw new UnauthorizedException('REFRESH_INVALID');
+      }
+
+      // Verify token hash matches (security check)
+      const isValidHash = await compareRefreshToken(
+        refreshToken,
+        refreshTokenEntity.tokenHash,
+      );
+
+      if (!isValidHash) {
+        throw new UnauthorizedException('REFRESH_INVALID');
+      }
+
+      // Check if token is revoked
+      if (refreshTokenEntity.isRevoked) {
+        throw new UnauthorizedException('REFRESH_REVOKED');
+      }
+
+      // Check if token expired (database check)
+      if (refreshTokenEntity.expiresAt < new Date()) {
+        throw new UnauthorizedException('REFRESH_EXPIRED');
+      }
+
+      // Check if user is still active
+      if (!refreshTokenEntity.user?.isActive) {
+        throw new UnauthorizedException('USER_INACTIVE');
+      }
+
+      // Update lastUsedAt
+      refreshTokenEntity.lastUsedAt = new Date();
+      await this.refreshTokenRepo.save(refreshTokenEntity);
+
+      // Get user
+      const user = await this.userRepository.getUserById(userId);
+      if (!user || !user.isActive) {
+        throw new UnauthorizedException('USER_INACTIVE');
+      }
+
+      // Generate new access token
+      const accessPayload = {
+        sub: user.id,
+        email: user.email,
+        username: user.username,
+      };
+
+      const newAccessToken = this.jwtService.sign(accessPayload, {
+        secret: tokenConfig.jwtAccessSecret,
+        expiresIn: tokenConfig.jwtAccessExpiration,
+      });
+
+      this.logger.info('Access token refreshed successfully', {
+        userId: user.id,
+        email: StringUtil.maskEmail(user.email),
+      });
+
+      return { accessToken: newAccessToken };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      this.logger.exception(error, {
+        context: 'refreshAccessToken',
+      });
+      throw new UnauthorizedException('REFRESH_FAILED');
+    }
+  }
+
+  /**
+   * Revoke a refresh token by tokenId
+   */
+  async revokeRefreshToken(tokenId: string): Promise<void> {
+    try {
+      const refreshToken = await this.refreshTokenRepo.findOne({
+        where: { tokenId },
+      });
+
+      if (refreshToken) {
+        refreshToken.isRevoked = true;
+        await this.refreshTokenRepo.save(refreshToken);
+
+        this.logger.info('Refresh token revoked', {
+          tokenId: refreshToken.id,
+          userId: refreshToken.userId,
+        });
+      }
+    } catch (error) {
+      this.logger.exception(error, {
+        context: 'revokeRefreshToken',
+      });
+      // Don't throw - logout should always succeed
+    }
+  }
+
+  /**
+   * Revoke a refresh token by extracting tokenId from token
+   */
+  async revokeRefreshTokenByToken(refreshTokenString: string): Promise<void> {
+    try {
+      const tokenConfig = this.configService.getOrThrow<TokenConfig>(
+        TokenConfigName,
+      );
+
+      // Decode token to get tokenId (without verification since it might be expired)
+      const decoded = this.jwtService.decode(refreshTokenString) as any;
+      if (decoded?.tokenId) {
+        await this.revokeRefreshToken(decoded.tokenId);
+      }
+    } catch (error) {
+      this.logger.exception(error, {
+        context: 'revokeRefreshTokenByToken',
+      });
+      // Don't throw - logout should always succeed
+    }
+  }
+
+  /**
+   * Revoke all refresh tokens for a user
+   */
+  async revokeAllUserRefreshTokens(userId: string): Promise<void> {
+    try {
+      await this.refreshTokenRepo.update(
+        { userId, isRevoked: false },
+        { isRevoked: true },
+      );
+
+      this.logger.info('All refresh tokens revoked for user', { userId });
+    } catch (error) {
+      this.logger.exception(error, {
+        context: 'revokeAllUserRefreshTokens',
+        userId,
+      });
+    }
   }
 }

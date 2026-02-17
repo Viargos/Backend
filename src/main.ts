@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import {
   ExpressAdapter,
@@ -6,6 +6,7 @@ import {
 } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import * as cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ServerConfigName } from './config/server.config';
@@ -14,6 +15,8 @@ import { ServerConfig } from './config/server.config';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+import { TransformInterceptor } from './common/interceptors';
+import { HttpExceptionFilter } from './common/filters';
 
 async function bootstrap() {
   console.log('Jay Swaminarayan... Shree Swaminarayan Vijayate...');
@@ -41,6 +44,9 @@ async function bootstrap() {
 
   app.use(compression());
 
+  // Cookie parser middleware (must be before routes)
+  app.use(cookieParser());
+
   // Serve static files from uploads directory
   const uploadsDir = join(process.cwd(), 'uploads');
   if (!existsSync(uploadsDir)) {
@@ -64,12 +70,21 @@ async function bootstrap() {
   app.getHttpAdapter().get('/swagger.json', (_, res: Response) => {
     res.json(document);
   });
+  // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true, // Automatically transform request data to DTO instances
       whitelist: true, // Strip properties that are not defined in the DTO
     }),
   );
+
+  // Global transform interceptor - wraps all responses in { data: T } format
+  const reflector = app.get(Reflector);
+  app.useGlobalInterceptors(new TransformInterceptor(reflector));
+
+  // Global exception filter - formats all errors consistently
+  app.useGlobalFilters(new HttpExceptionFilter());
+
   await app.listen(serverConfig.port ?? 3000);
 }
 bootstrap();

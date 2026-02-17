@@ -7,7 +7,9 @@ import {
   UseGuards,
   Request,
   Get,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
@@ -16,17 +18,31 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { LocalAuthGuard } from 'src/security/local-auth.guard';
-import { JwtAuthGuard } from 'src/security/jwt-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { PasswordResetGuard } from './guards/password-reset.guard';
 import { User } from '../user/entities/user.entity';
 import { UserDto } from '../user/dto/user.dto';
 import { Public } from './decorators/public.decorator';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  setAuthCookies,
+  setAccessCookie,
+  clearAuthCookies,
+} from './utils/cookie.util';
+import { ConfigService } from '@nestjs/config';
+import { COOKIE_NAMES } from '../../common/constants';
+import { Throttle } from '@nestjs/throttler';
+import { NoTransform } from '../../common/decorators';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Public()
   @Post('signup')
@@ -43,8 +59,44 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'OTP verified successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-    return this.authService.verifyOtp(verifyOtpDto);
+  async verifyOtp(
+    @Body() verifyOtpDto: VerifyOtpDto,
+    @Request() req: { headers: any; ip?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyOtp(verifyOtpDto);
+
+    // If OTP verification activated the account (email verification), set auth cookies
+    if (result.user && result.user.isActive) {
+      const userAgent = req.headers['user-agent'] || undefined;
+      const ipAddress =
+        req.headers['x-forwarded-for']?.split(',')[0] ||
+        req.headers['x-real-ip'] ||
+        req.ip ||
+        undefined;
+
+      const { accessToken, refreshToken } =
+        await this.authService.generateTokens(result.user, userAgent, ipAddress);
+
+      setAuthCookies(res, accessToken, refreshToken, this.configService);
+
+      return {
+        message: result.message,
+        user: {
+          id: result.user.id,
+          username: result.user.username,
+          email: result.user.email,
+          profileImage: result.user.profileImage,
+          isActive: result.user.isActive,
+        },
+      };
+    }
+
+    // For password reset, return the accessToken in body (not cookie) - it's short-lived
+    return {
+      message: result.message,
+      accessToken: result.accessToken,
+    };
   }
 
   @Public()
@@ -88,13 +140,95 @@ export class AuthController {
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async signin(@Body() signInDto: SignInDto, @Request() req: { user: User }) {
-    return this.authService.signin(req.user);
+  async signin(
+    @Body() signInDto: SignInDto,
+    @Request() req: { user: User; headers: any; ip?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const userAgent = req.headers['user-agent'] || undefined;
+    const ipAddress =
+      req.headers['x-forwarded-for']?.split(',')[0] ||
+      req.headers['x-real-ip'] ||
+      req.ip ||
+      undefined;
+
+    const { accessToken, refreshToken } = await this.authService.generateTokens(
+      req.user,
+      userAgent,
+      ipAddress,
+    );
+
+    setAuthCookies(res, accessToken, refreshToken, this.configService);
+
+    return {
+      message: 'Login successful',
+      user: {
+        id: req.user.id,
+        username: req.user.username,
+        email: req.user.email,
+        profileImage: req.user.profileImage,
+        isActive: req.user.isActive,
+      },
+    };
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req: { user: User }) {
-    return new UserDto(req.user);
+  getProfile(@CurrentUser() user: User) {
+    // Return plain data - Transform Interceptor will wrap it in { data: T }
+    return new UserDto(user);
+  }
+
+  @Public()
+  @UseGuards(JwtRefreshGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  async refresh(
+    @Request() req: { user: User & { tokenId: string }; cookies: any },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies[COOKIE_NAMES.REFRESH_TOKEN];
+
+    if (!refreshToken) {
+      throw new Error('Refresh token not found');
+    }
+
+    const { accessToken } = await this.authService.refreshAccessToken(
+      refreshToken,
+    );
+
+    setAccessCookie(res, accessToken, this.configService);
+
+    return {
+      message: 'Token refreshed',
+    };
+  }
+
+  @Public()
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'User logout' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  async logout(
+    @Request() req: { cookies: any },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies[COOKIE_NAMES.REFRESH_TOKEN];
+
+    // Try to revoke refresh token (may be expired, that's okay)
+    if (refreshToken) {
+      await this.authService.revokeRefreshTokenByToken(refreshToken);
+    }
+
+    clearAuthCookies(res, this.configService);
+
+    return {
+      message: 'Logged out successfully',
+    };
   }
 }
