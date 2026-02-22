@@ -82,6 +82,16 @@ export class CreateJourneyDayPlaceDto {
 
   @ApiProperty({
     required: false,
+    description: 'Display order for drag-and-drop persistence (0-indexed)',
+    example: 0,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  order?: number;
+
+  @ApiProperty({
+    required: false,
     type: [CreateJourneyMediaDto],
     description:
       'Optional media items (images/videos) associated with this place. If omitted, the place will have no media.',

@@ -42,6 +42,9 @@ export class JourneyDayPlace {
   @Column({ type: 'time', nullable: true })
   endTime: string;
 
+  @Column({ type: 'integer', nullable: true })
+  order: number;
+
   @ManyToOne(() => JourneyDay, (day) => day.places, {
     onDelete: 'CASCADE',
   })
