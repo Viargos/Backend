@@ -8,10 +8,10 @@ export const TIME = {
   OTP_EXPIRY_SECONDS: 10 * 60, // 10 minutes
 
   // JWT token expiry
-  JWT_ACCESS_TOKEN_EXPIRY: '7d', // 7 days
-  JWT_REFRESH_TOKEN_EXPIRY: '30d', // 30 days
-  JWT_ACCESS_TOKEN_EXPIRY_SECONDS: 7 * 24 * 60 * 60, // 7 days
-  JWT_REFRESH_TOKEN_EXPIRY_SECONDS: 30 * 24 * 60 * 60, // 30 days
+  JWT_ACCESS_TOKEN_EXPIRY: '1h', // 1 hour (for cookie-based auth)
+  JWT_REFRESH_TOKEN_EXPIRY: '7d', // 7 days (for cookie-based auth)
+  JWT_ACCESS_TOKEN_EXPIRY_SECONDS: 60 * 60, // 1 hour (3600 seconds)
+  JWT_REFRESH_TOKEN_EXPIRY_SECONDS: 7 * 24 * 60 * 60, // 7 days
 
   // Password reset token expiry
   PASSWORD_RESET_TOKEN_EXPIRY: '15m', // 15 minutes

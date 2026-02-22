@@ -105,6 +105,14 @@ export class JourneyRepository {
     const journey = await this.journeyRepo.findOne({
       where: { id },
       relations: ['days', 'days.places', 'days.places.media'],
+      order: {
+        days: {
+          dayNumber: 'ASC',
+          places: {
+            order: 'ASC',
+          },
+        },
+      },
     });
 
     if (journey) {
@@ -131,6 +139,14 @@ export class JourneyRepository {
 
     const journeys = await this.journeyRepo.find({
       relations: ['days', 'days.places', 'days.places.media'],
+      order: {
+        days: {
+          dayNumber: 'ASC',
+          places: {
+            order: 'ASC',
+          },
+        },
+      },
     });
 
     let totalMedia = 0;
@@ -158,7 +174,15 @@ export class JourneyRepository {
     const journeys = await this.journeyRepo.find({
       where: { user: { id: userId } },
       relations: ['days', 'days.places', 'days.places.media', 'user'],
-      order: { createdAt: 'DESC' }, // Most recent first
+      order: {
+        createdAt: 'DESC', // Most recent first
+        days: {
+          dayNumber: 'ASC',
+          places: {
+            order: 'ASC',
+          },
+        },
+      },
     });
 
     let totalMedia = 0;
@@ -257,9 +281,9 @@ export class JourneyRepository {
 
               // Insert the place
               const placeResult = await manager.query(
-                `INSERT INTO journey_day_place 
-                 ("type", "name", "description", "address", "latitude", "longitude", "startTime", "endTime", "journeyDayId")
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                `INSERT INTO journey_day_place
+                 ("type", "name", "description", "address", "latitude", "longitude", "startTime", "endTime", "order", "journeyDayId")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                  RETURNING id`,
                 [
                   place.type,
@@ -270,6 +294,7 @@ export class JourneyRepository {
                   place.longitude || null,
                   place.startTime || null,
                   place.endTime || null,
+                  (place as any).order ?? null,
                   dayId,
                 ],
               );
@@ -412,7 +437,15 @@ export class JourneyRepository {
     const journeys = await this.journeyRepo.find({
       where: { id: In(journeyIds) },
       relations: ['user', 'days', 'days.places', 'days.places.media'],
-      order: { createdAt: 'DESC' },
+      order: {
+        createdAt: 'DESC',
+        days: {
+          dayNumber: 'ASC',
+          places: {
+            order: 'ASC',
+          },
+        },
+      },
     });
 
     let totalMedia = 0;
