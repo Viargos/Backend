@@ -21,6 +21,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     try {
+      if (payload?.purpose !== 'password_reset' && payload?.emailVerified === false) {
+        throw new UnauthorizedException('EMAIL_VERIFICATION_REQUIRED');
+      }
+
       // Use 'sub' field as per JWT standard (subject = user ID)
       const user = await this.usersRepo.getUserById(payload.sub);
 
@@ -44,6 +48,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         purpose: payload.purpose,
       };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new UnauthorizedException('UNAUTHORIZED');
     }
   }

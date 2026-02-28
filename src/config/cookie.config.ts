@@ -9,9 +9,26 @@ export interface CookieConfig {
 }
 
 export default registerAs(CookieConfigName, () => ({
-  domain: process.env.COOKIE_DOMAIN || undefined,
+  domain: normalizeCookieDomain(process.env.COOKIE_DOMAIN),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3001',
 }));
+
+function normalizeCookieDomain(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized === 'localhost' || normalized === '127.0.0.1') {
+    return undefined;
+  }
+
+  return value;
+}
 
 /**
  * Get cookie options for access token

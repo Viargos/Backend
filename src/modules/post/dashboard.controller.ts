@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request, Logger } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -14,6 +14,8 @@ import { DataResponse, StatusCode } from 'src/core/http/response';
 @ApiTags('dashboard')
 @Controller('dashboard')
 export class DashboardController {
+  private readonly logger = new Logger(DashboardController.name);
+
   constructor(private readonly postService: PostService) {}
 
   @Get()
@@ -124,6 +126,14 @@ export class DashboardController {
       totalCount: number;
     }>
   > {
+    if (process.env.NODE_ENV !== 'production') {
+      const cookieHeader = typeof req.headers?.cookie === 'string' ? req.headers.cookie : '';
+      this.logger.debug('Dashboard cookie header received', {
+        cookiePreview: cookieHeader.slice(0, 80),
+        hasAccessToken: cookieHeader.includes('viargos_access_token='),
+      });
+    }
+
     const result = await this.postService.getDashboardPostsWithUserLikes(
       req.user.id,
       query.cursor,

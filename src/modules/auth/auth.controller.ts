@@ -33,7 +33,7 @@ import {
 } from './utils/cookie.util';
 import { ConfigService } from '@nestjs/config';
 import { COOKIE_NAMES } from '../../common/constants';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { NoTransform } from '../../common/decorators';
 
 @ApiTags('Auth')
@@ -54,7 +54,9 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(ThrottlerGuard)
   @Post('verify-otp')
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
   @ApiOperation({ summary: 'Verify OTP for email verification or password reset' })
   @ApiResponse({ status: 200, description: 'OTP verified successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -100,6 +102,20 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Post('verify-email')
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
+  @ApiOperation({ summary: 'Verify OTP for email verification' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  async verifyEmail(
+    @Body() verifyOtpDto: VerifyOtpDto,
+    @Request() req: { headers: any; ip?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.verifyOtp(verifyOtpDto, req, res);
+  }
+
+  @Public()
   @Post('forgot-password')
   @ApiOperation({ summary: 'Request password reset OTP' })
   @ApiResponse({ status: 200, description: 'Password reset OTP sent' })
@@ -110,12 +126,24 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(ThrottlerGuard)
   @Post('resend-otp')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Resend OTP for email verification or password reset' })
   @ApiResponse({ status: 200, description: 'OTP resent successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async resendOtp(@Body() resendOtpDto: ResendOtpDto) {
+    return this.authService.resendOtp(resendOtpDto);
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Post('resend-verification')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({ summary: 'Resend OTP for email verification' })
+  @ApiResponse({ status: 200, description: 'Verification OTP resent successfully' })
+  async resendVerification(@Body() resendOtpDto: ResendOtpDto) {
     return this.authService.resendOtp(resendOtpDto);
   }
 
@@ -136,12 +164,14 @@ export class AuthController {
 
   @Public()
   @UseGuards(LocalAuthGuard)
+  @NoTransform()
   @Post('signin')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async signin(
-    @Body() signInDto: SignInDto,
+    @Body() _signInDto: SignInDto,
     @Request() req: { user: User; headers: any; ip?: string },
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -151,6 +181,29 @@ export class AuthController {
       req.headers['x-real-ip'] ||
       req.ip ||
       undefined;
+
+    if (!req.user.isActive) {
+      await this.authService.resendOtp({ email: req.user.email });
+      const { accessToken, refreshToken } = await this.authService.generateTokens(
+        req.user,
+        userAgent,
+        ipAddress,
+      );
+      setAuthCookies(res, accessToken, refreshToken, this.configService);
+
+      return {
+        message: 'Email verification required',
+        user: {
+          id: req.user.id,
+          username: req.user.username,
+          email: req.user.email,
+          profileImage: req.user.profileImage,
+          isActive: req.user.isActive,
+        },
+        verified: false,
+        requiresVerification: true,
+      };
+    }
 
     const { accessToken, refreshToken } = await this.authService.generateTokens(
       req.user,
@@ -169,6 +222,8 @@ export class AuthController {
         profileImage: req.user.profileImage,
         isActive: req.user.isActive,
       },
+      verified: true,
+      requiresVerification: false,
     };
   }
 

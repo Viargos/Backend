@@ -9,6 +9,7 @@ import { ERROR_MESSAGES, COOKIE_NAMES } from 'src/common/constants';
 // Narrowed payload type to the fields this strategy actually depends on
 interface JwtPayload {
   sub: string;
+  emailVerified?: boolean;
   purpose?: string;
   [key: string]: unknown;
 }
@@ -43,6 +44,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    if (payload.purpose !== 'password_reset' && payload.emailVerified === false) {
+      throw new UnauthorizedException('EMAIL_VERIFICATION_REQUIRED');
+    }
+
     // Use 'sub' field as per JWT standard (subject = user ID)
     const user = await this.usersRepo.getUserById(payload.sub);
 

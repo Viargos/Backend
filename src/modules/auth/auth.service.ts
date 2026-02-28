@@ -238,8 +238,10 @@ export class AuthService {
 
       // Generate access token for both email verification and password reset
       const payload = {
+        emailVerified: user.isActive,
         email: user.email,
         sub: user.id, // Use 'sub' for JWT standard
+        userId: user.id,
         purpose: user.isActive ? 'password_reset' : 'login',
       };
 
@@ -605,7 +607,12 @@ export class AuthService {
         throw new UnauthorizedException(ERROR_MESSAGES.AUTH.ACCOUNT_NOT_ACTIVE);
       }
 
-      const payload = { email: user.email, sub: user.id }; // Use 'sub' for JWT standard
+      const payload = {
+        email: user.email,
+        emailVerified: user.isActive,
+        sub: user.id,
+        userId: user.id,
+      }; // Use 'sub' for JWT standard
       const expiresIn =
         this.configService.get<AuthKeyConfig>(AuthKeyConfigName);
 
@@ -681,8 +688,10 @@ export class AuthService {
 
       // Create access token payload
       const accessPayload = {
+        emailVerified: user.isActive,
         sub: user.id,
         email: user.email,
+        userId: user.id,
         username: user.username,
       };
 
@@ -812,8 +821,10 @@ export class AuthService {
 
       // Generate new access token
       const accessPayload = {
+        emailVerified: user.isActive,
         sub: user.id,
         email: user.email,
+        userId: user.id,
         username: user.username,
       };
 

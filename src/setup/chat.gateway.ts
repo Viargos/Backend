@@ -6,6 +6,7 @@ import {
   OnGatewayDisconnect,
   ConnectedSocket,
   MessageBody,
+  WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseGuards } from '@nestjs/common';
@@ -19,6 +20,27 @@ import { AuthKeyConfig, AuthKeyConfigName } from '../config/authkey.config';
 // ✅ NEW: Import logger and constants
 import { Logger } from '../common/utils';
 import { ERROR_MESSAGES } from '../common/constants';
+
+type MessageSendPayload = {
+  receiverId: string;
+  content: string;
+  tempId?: string;
+  conversationId?: string;
+};
+
+type StructuredWsError = {
+  code: string;
+  details?: Record<string, unknown>;
+  message: string;
+};
+
+type MessageSendAckPayload = {
+  code?: string;
+  error?: string;
+  message?: unknown;
+  success: boolean;
+  tempId?: string | null;
+};
 
 @WebSocketGateway({
   cors: {
@@ -36,6 +58,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
+  private readonly idempotencyCacheTtlMs = 10 * 60 * 1000;
+  private readonly inFlightMessageSends = new Map<string, {
+    content: string;
+    conversationId: string;
+    promise: Promise<unknown>;
+    receiverId: string;
+  }>();
+  private readonly messageRateLimit = 10;
+  private readonly messageRateWindowMs = 5 * 1000;
+  private readonly messageSendIdempotencyCache = new Map<string, {
+    content: string;
+    conversationId: string;
+    createdAt: number;
+    message: unknown;
+    receiverId: string;
+  }>();
+  private readonly socketMessageTimestamps = new Map<string, number[]>();
   private userSockets: Map<string, Socket> = new Map();
   private typingUsers: Map<string, Set<string>> = new Map(); // userId -> Set of users they're typing to
 
@@ -44,6 +83,37 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
+
+  private readTokenFromCookieHeader(cookieHeader?: string): string | null {
+    if (!cookieHeader) {
+      return null;
+    }
+
+    const tokenPair = cookieHeader
+      .split(';')
+      .map(item => item.trim())
+      .find(item => item.startsWith('viargos_access_token='));
+
+    if (!tokenPair) {
+      return null;
+    }
+
+    const value = tokenPair.slice('viargos_access_token='.length);
+    return value ? decodeURIComponent(value) : null;
+  }
+
+  private getSocketToken(client: Socket): string | null {
+    const authToken = client.handshake.auth?.token;
+    if (typeof authToken === 'string' && authToken.length > 0) {
+      return authToken;
+    }
+
+    const headerValue = Array.isArray(client.handshake.headers.cookie)
+      ? client.handshake.headers.cookie.join(';')
+      : client.handshake.headers.cookie;
+
+    return this.readTokenFromCookieHeader(headerValue);
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -89,6 +159,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleDisconnect(client: Socket) {
+    this.socketMessageTimestamps.delete(client.id);
+
     const user = client.data.user;
     if (user) {
       this.userSockets.delete(user.sub);
@@ -111,9 +183,186 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  private parseConversationParticipants(conversationId: string): [string, string] {
+    const trimmed = conversationId.trim();
+    const [firstId, secondId, ...rest] = trimmed.split('__');
+    if (!firstId || !secondId || rest.length > 0) {
+      throw new WsException({
+        code: 'BAD_REQUEST',
+        message: 'Invalid conversation id format',
+      } satisfies StructuredWsError);
+    }
+
+    return [firstId, secondId];
+  }
+
+  private normalizeWsError(error: unknown): StructuredWsError {
+    if (error instanceof WsException) {
+      const wsError = error.getError();
+      if (typeof wsError === 'object' && wsError !== null) {
+        const payload = wsError as Partial<StructuredWsError>;
+        return {
+          code: payload.code ?? 'WS_ERROR',
+          details: payload.details,
+          message: payload.message ?? 'WebSocket error',
+        };
+      }
+
+      return {
+        code: 'WS_ERROR',
+        message: typeof wsError === 'string' ? wsError : 'WebSocket error',
+      };
+    }
+
+    if (error instanceof Error) {
+      return {
+        code: 'INTERNAL_ERROR',
+        message: error.message || 'Internal server error',
+      };
+    }
+
+    return {
+      code: 'INTERNAL_ERROR',
+      message: 'Internal server error',
+    };
+  }
+
+  private throwWsError(
+    code: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): never {
+    throw new WsException({
+      code,
+      details,
+      message,
+    } satisfies StructuredWsError);
+  }
+
+  private getIdempotencyKey(senderId: string, tempId: string): string {
+    return `${senderId}:${tempId}`;
+  }
+
+  private pruneIdempotencyCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.messageSendIdempotencyCache.entries()) {
+      if (now - value.createdAt > this.idempotencyCacheTtlMs) {
+        this.messageSendIdempotencyCache.delete(key);
+      }
+    }
+  }
+
+  private assertMessageRateLimit(client: Socket): void {
+    const now = Date.now();
+    const socketId = client.id;
+    const timestamps = (this.socketMessageTimestamps.get(socketId) ?? [])
+      .filter(item => now - item < this.messageRateWindowMs);
+
+    if (timestamps.length >= this.messageRateLimit) {
+      this.throwWsError(
+        'RATE_LIMITED',
+        'Too many messages. Please wait and try again.',
+      );
+    }
+
+    timestamps.push(now);
+    this.socketMessageTimestamps.set(socketId, timestamps);
+  }
+
+  private getResolvedConversationId(userA: string, userB: string): string {
+    return userA < userB ? `${userA}__${userB}` : `${userB}__${userA}`;
+  }
+
+  private async validateConversationMembership(params: {
+    conversationId?: string;
+    receiverId?: string;
+    senderId: string;
+  }): Promise<{ conversationId: string; receiverId: string }> {
+    const {
+      conversationId,
+      receiverId,
+      senderId,
+    } = params;
+
+    if (!senderId) {
+      this.throwWsError('UNAUTHORIZED', 'User not authenticated');
+    }
+
+    if (conversationId?.trim()) {
+      const [id1, id2] = this.parseConversationParticipants(conversationId);
+      if (senderId !== id1 && senderId !== id2) {
+        this.throwWsError('FORBIDDEN', 'Not a participant', {
+          conversationId,
+        });
+      }
+
+      const resolvedReceiverId = senderId === id1 ? id2 : id1;
+      if (receiverId && receiverId !== resolvedReceiverId) {
+        this.throwWsError('BAD_REQUEST', 'receiverId does not match conversation participants', {
+          conversationId,
+          receiverId,
+        });
+      }
+
+      const conversation = await this.chatService.getConversation(
+        senderId,
+        conversationId,
+      ).catch(() => null);
+      if (!conversation?.conversation) {
+        this.throwWsError('NOT_FOUND', 'Conversation not found', {
+          conversationId,
+        });
+      }
+
+      const conversationPolicy = conversation.conversation as Record<string, unknown>;
+      if (
+        conversationPolicy.isBlocked === true
+        || conversationPolicy.blocked === true
+      ) {
+        this.throwWsError('FORBIDDEN', 'Messaging is blocked for this conversation');
+      }
+
+      if (
+        conversationPolicy.isMuted === true
+        || conversationPolicy.muted === true
+      ) {
+        this.throwWsError('FORBIDDEN', 'Messaging is muted for this conversation');
+      }
+
+      return {
+        conversationId,
+        receiverId: resolvedReceiverId,
+      };
+    }
+
+    if (!receiverId?.trim()) {
+      this.throwWsError('BAD_REQUEST', 'receiverId is required');
+    }
+
+    if (receiverId === senderId) {
+      this.throwWsError('BAD_REQUEST', 'Cannot send message to yourself');
+    }
+
+    const resolvedConversationId = this.getResolvedConversationId(senderId, receiverId);
+    const conversation = await this.chatService.getConversation(
+      senderId,
+      resolvedConversationId,
+    ).catch(() => null);
+    if (!conversation?.conversation) {
+      this.throwWsError('NOT_FOUND', 'Conversation not found', {
+        conversationId: resolvedConversationId,
+      });
+    }
+
+    return {
+      conversationId: resolvedConversationId,
+      receiverId,
+    };
+  }
+
   private async validateConnection(client: Socket): Promise<any | null> {
     try {
-      const token = client.handshake.auth.token;
+      const token = this.getSocketToken(client);
       if (!token) {
         throw new Error('No token provided');
       }
@@ -147,67 +396,226 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @UseGuards(WsJwtAuthGuard)
-  @SubscribeMessage('sendMessage')
+  @SubscribeMessage('message:send')
   async handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { receiverId: string; content: string },
+    @MessageBody() data: MessageSendPayload,
   ) {
+    return this.processMessageSend(client, data);
+  }
+
+  @UseGuards(WsJwtAuthGuard)
+  @SubscribeMessage('sendMessage')
+  async handleLegacySendMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: MessageSendPayload,
+  ) {
+    return this.processMessageSend(client, data);
+  }
+
+  private async processMessageSend(client: Socket, data: MessageSendPayload) {
     const sender = client.data.user;
-    const { receiverId, content } = data;
+    const {
+      content,
+      tempId,
+    } = data;
 
     if (!sender || !sender.sub) {
-      // ✅ NEW: Structured error logging
       this.logger.error('Message send failed: Sender not authenticated', {
         socketId: client.id,
-        receiverId,
+        tempId,
       });
-      client.emit('error', { message: ERROR_MESSAGES.UNAUTHORIZED });
-      return { success: false, error: 'User not authenticated' };
+      const unauthenticatedError: StructuredWsError = {
+        code: 'UNAUTHORIZED',
+        message: ERROR_MESSAGES.UNAUTHORIZED,
+      };
+      client.emit('error', unauthenticatedError);
+      return {
+        code: unauthenticatedError.code,
+        error: unauthenticatedError.message,
+        success: false,
+        tempId: tempId ?? null,
+      } satisfies MessageSendAckPayload;
     }
 
     try {
-      // Create the message
-      const message = await this.chatService.sendMessage(
+      this.pruneIdempotencyCache();
+      this.assertMessageRateLimit(client);
+
+      const resolvedConversation = await this.validateConversationMembership({
+        conversationId: data.conversationId,
+        receiverId: data.receiverId,
+        senderId: sender.sub,
+      });
+      const {
+        conversationId: resolvedConversationId,
+        receiverId: resolvedReceiverId,
+      } = resolvedConversation;
+
+      if (tempId) {
+        const idempotencyKey = this.getIdempotencyKey(sender.sub, tempId);
+        const inFlight = this.inFlightMessageSends.get(idempotencyKey);
+        if (inFlight) {
+          if (
+            inFlight.conversationId !== resolvedConversationId
+            || inFlight.receiverId !== resolvedReceiverId
+            || inFlight.content !== content
+          ) {
+            this.throwWsError(
+              'CONFLICT',
+              'Duplicate tempId with different payload',
+              {
+                tempId,
+              },
+            );
+          }
+
+          const inFlightMessage = await inFlight.promise as Record<string, unknown>;
+          client.emit('message:ack', {
+            tempId,
+            id: inFlightMessage.id,
+            createdAt: inFlightMessage.createdAt,
+            message: inFlightMessage,
+          });
+          return {
+            message: inFlightMessage,
+            success: true,
+            tempId,
+          } satisfies MessageSendAckPayload;
+        }
+
+        const cached = this.messageSendIdempotencyCache.get(idempotencyKey);
+        if (cached) {
+          if (
+            cached.conversationId !== resolvedConversationId
+            || cached.receiverId !== resolvedReceiverId
+            || cached.content !== content
+          ) {
+            this.throwWsError(
+              'CONFLICT',
+              'Duplicate tempId with different payload',
+              {
+                tempId,
+              },
+            );
+          }
+
+          this.logger.debug('Idempotent resend detected; returning cached ack', {
+            senderId: sender.sub,
+            tempId,
+          });
+          const cachedMessage = cached.message as Record<string, unknown>;
+          client.emit('message:ack', {
+            tempId,
+            id: cachedMessage.id,
+            createdAt: cachedMessage.createdAt,
+            message: cachedMessage,
+          });
+          return {
+            message: cachedMessage,
+            success: true,
+            tempId,
+          } satisfies MessageSendAckPayload;
+        }
+      }
+
+      // Join room only after membership validation.
+      client.join(resolvedConversationId);
+
+      const idempotencyKey = tempId
+        ? this.getIdempotencyKey(sender.sub, tempId)
+        : null;
+      const messagePromise = this.chatService.sendMessage(
         sender.sub,
-        receiverId,
+        resolvedReceiverId,
         content,
       );
+      if (idempotencyKey) {
+        this.inFlightMessageSends.set(idempotencyKey, {
+          content,
+          conversationId: resolvedConversationId,
+          promise: messagePromise,
+          receiverId: resolvedReceiverId,
+        });
+      }
 
-      // Send to receiver if online
-      const receiverSocket = this.userSockets.get(receiverId);
+      // Create the message
+      const message = await messagePromise;
+      if (idempotencyKey) {
+        this.inFlightMessageSends.delete(idempotencyKey);
+      }
+
+      if (tempId) {
+        this.messageSendIdempotencyCache.set(
+          this.getIdempotencyKey(sender.sub, tempId),
+          {
+            content,
+            conversationId: resolvedConversationId,
+            createdAt: Date.now(),
+            message,
+            receiverId: resolvedReceiverId,
+          },
+        );
+      }
+
+      // ACK only after persistence.
+      client.emit('messageSent', message);
+      client.emit('message:ack', {
+        tempId: tempId ?? null,
+        id: message.id,
+        createdAt: message.createdAt,
+        message,
+      });
+
+      // Broadcast after ACK.
+      const receiverSocket = this.userSockets.get(resolvedReceiverId);
       if (receiverSocket) {
+        receiverSocket.join(resolvedConversationId);
         receiverSocket.emit('newMessage', message);
-        // ✅ NEW: Structured log for message delivery
+        receiverSocket.emit('message:new', message);
+
         this.logger.info('Message delivered to online user', {
           messageId: message.id,
           senderId: sender.sub,
-          receiverId,
+          receiverId: resolvedReceiverId,
           contentLength: content.length,
         });
       } else {
-        // ✅ NEW: Structured log for offline message
         this.logger.info('Message saved for offline user', {
           messageId: message.id,
           senderId: sender.sub,
-          receiverId,
+          receiverId: resolvedReceiverId,
           contentLength: content.length,
         });
       }
 
-      // Send confirmation to sender with the created message
-      client.emit('messageSent', message);
+      this.logger.debug('Emitted message delivery acknowledgement', {
+        tempId,
+        messageId: message.id,
+        senderId: sender.sub,
+      });
 
-      return { success: true, message };
+      return { success: true, message, tempId: tempId ?? null } satisfies MessageSendAckPayload;
     } catch (error) {
-      // ✅ NEW: Better error logging with context
+      if (tempId) {
+        this.inFlightMessageSends.delete(this.getIdempotencyKey(sender.sub, tempId));
+      }
+      const normalizedError = this.normalizeWsError(error);
       this.logger.error('Failed to send message', {
         senderId: sender.sub,
-        receiverId,
-        error: error.message,
+        receiverId: data.receiverId,
+        error: normalizedError.message,
+        errorCode: normalizedError.code,
         socketId: client.id,
+        tempId,
       });
-      client.emit('error', { message: 'Failed to send message' });
-      return { success: false, error: error.message };
+      client.emit('error', normalizedError);
+      return {
+        code: normalizedError.code,
+        error: normalizedError.message,
+        success: false,
+        tempId: tempId ?? null,
+      } satisfies MessageSendAckPayload;
     }
   }
 
@@ -272,6 +680,42 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // New WebSocket events
+
+  @UseGuards(WsJwtAuthGuard)
+  @SubscribeMessage('conversation:join')
+  async handleConversationJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string },
+  ) {
+    const user = client.data.user;
+    try {
+      const conversation = await this.validateConversationMembership({
+        conversationId: data?.conversationId,
+        senderId: user?.sub,
+      });
+      client.join(conversation.conversationId);
+      client.emit('conversation:joined', {
+        conversationId: conversation.conversationId,
+      });
+
+      this.logger.debug('User joined conversation room', {
+        conversationId: conversation.conversationId,
+        socketId: client.id,
+        userId: user.sub,
+      });
+    } catch (error) {
+      const normalizedError = this.normalizeWsError(error);
+      this.logger.warn('Failed conversation room join', {
+        conversationId: data?.conversationId,
+        errorCode: normalizedError.code,
+        message: normalizedError.message,
+        socketId: client.id,
+        userId: user?.sub,
+      });
+      client.emit('error', normalizedError);
+      throw new WsException(normalizedError);
+    }
+  }
 
   @UseGuards(WsJwtAuthGuard)
   @SubscribeMessage('join_chat')

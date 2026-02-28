@@ -21,6 +21,7 @@ const cookieExtractor = (req: Request): string | null => {
 interface JwtAccessPayload {
   sub: string;
   email: string;
+  emailVerified?: boolean;
   username: string;
   [key: string]: unknown;
 }
@@ -41,6 +42,10 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
 
   async validate(payload: JwtAccessPayload) {
     try {
+      if (payload.emailVerified === false) {
+        throw new UnauthorizedException('EMAIL_VERIFICATION_REQUIRED');
+      }
+
       const user = await this.usersRepo.getUserById(payload.sub);
 
       if (!user) {
@@ -49,7 +54,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
 
       // Check if user is active
       if (!user.isActive) {
-        throw new UnauthorizedException(ERROR_MESSAGES.AUTH.ACCOUNT_NOT_ACTIVE);
+        throw new UnauthorizedException('EMAIL_VERIFICATION_REQUIRED');
       }
 
       return user;

@@ -74,6 +74,17 @@ export class AuthExceptionFilter implements ExceptionFilter {
         message: 'Your account is no longer active',
         shouldRetry: false,
       };
+    } else if (
+      message.includes('EMAIL_VERIFICATION_REQUIRED')
+      || message.toLowerCase().includes('verify your email')
+      || message.toLowerCase().includes('email verification required')
+    ) {
+      errorResponse = {
+        statusCode: HttpStatus.UNAUTHORIZED,
+        error: AUTH_ERROR_CODES.EMAIL_VERIFICATION_REQUIRED,
+        message: 'Email verification required',
+        shouldRetry: false,
+      };
     } else {
       // Generic unauthorized
       errorResponse = {
