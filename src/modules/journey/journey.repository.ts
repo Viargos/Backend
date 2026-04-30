@@ -6,6 +6,15 @@ import { CreateJourneyDto } from './dto/create-journey.dto';
 import { UpdateJourneyDto } from './dto/update-journey.dto';
 import { JourneyMediaType } from './entities/journey-media.entity';
 
+function normalizeOptionalTime(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return value == null ? null : String(value);
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue ? trimmedValue : null;
+}
+
 @Injectable()
 export class JourneyRepository {
   constructor(
@@ -65,7 +74,9 @@ export class JourneyRepository {
 
             return {
               ...rest,
+              endTime: normalizeOptionalTime(anyPlace.endTime),
               media: combinedMedia.length > 0 ? combinedMedia : undefined,
+              startTime: normalizeOptionalTime(anyPlace.startTime),
             };
           }) || [],
         };
@@ -282,8 +293,8 @@ export class JourneyRepository {
               // Insert the place
               const placeResult = await manager.query(
                 `INSERT INTO journey_day_place
-                 ("type", "name", "description", "address", "latitude", "longitude", "startTime", "endTime", "order", "journeyDayId")
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 ("type", "name", "description", "address", "latitude", "longitude", "startTime", "endTime", "order", "bookingGroupId", "bookingStartDayNumber", "bookingEndDayNumber", "journeyDayId")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                  RETURNING id`,
                 [
                   place.type,
@@ -292,9 +303,12 @@ export class JourneyRepository {
                   place.address || null,
                   place.latitude || null,
                   place.longitude || null,
-                  place.startTime || null,
-                  place.endTime || null,
+                  normalizeOptionalTime(place.startTime),
+                  normalizeOptionalTime(place.endTime),
                   (place as any).order ?? null,
+                  (place as any).bookingGroupId ?? null,
+                  (place as any).bookingStartDayNumber ?? null,
+                  (place as any).bookingEndDayNumber ?? null,
                   dayId,
                 ],
               );
@@ -391,6 +405,72 @@ export class JourneyRepository {
     return await this.journeyRepo.count({
       where: { user: { id: userId } },
     });
+  }
+
+  async getPopularJourneys(
+    currentUserId: string,
+    limit: number,
+  ): Promise<Array<{
+    coverImage?: string;
+    createdAt: string;
+    creator: {
+      id: string;
+      username: string;
+    };
+    daysCount: number;
+    description?: string;
+    id: string;
+    placesCount: number;
+    title: string;
+  }>> {
+    const rows = await this.journeyRepo
+      .createQueryBuilder('journey')
+      .leftJoin('journey.user', 'user')
+      .leftJoin('journey.days', 'day')
+      .leftJoin('day.places', 'place')
+      .select('journey.id', 'id')
+      .addSelect('journey.title', 'title')
+      .addSelect('journey.description', 'description')
+      .addSelect('journey.coverImage', 'coverImage')
+      .addSelect('journey.createdAt', 'createdAt')
+      .addSelect('user.id', 'creatorId')
+      .addSelect('user.username', 'creatorUsername')
+      .addSelect('COUNT(DISTINCT day.id)', 'daysCount')
+      .addSelect('COUNT(DISTINCT place.id)', 'placesCount')
+      .where('user.id != :currentUserId', { currentUserId })
+      .groupBy('journey.id')
+      .addGroupBy('user.id')
+      .addGroupBy('user.username')
+      .having('COUNT(DISTINCT day.id) > 0 OR COUNT(DISTINCT place.id) > 0')
+      .orderBy('COUNT(DISTINCT place.id)', 'DESC')
+      .addOrderBy('COUNT(DISTINCT day.id)', 'DESC')
+      .addOrderBy('journey.createdAt', 'DESC')
+      .limit(limit)
+      .getRawMany<{
+        coverImage: string | null;
+        createdAt: string;
+        creatorId: string;
+        creatorUsername: string;
+        daysCount: string | number;
+        description: string | null;
+        id: string;
+        placesCount: string | number;
+        title: string;
+      }>();
+
+    return rows.map(row => ({
+      coverImage: row.coverImage ?? undefined,
+      createdAt: row.createdAt,
+      creator: {
+        id: row.creatorId,
+        username: row.creatorUsername,
+      },
+      daysCount: Number(row.daysCount) || 0,
+      description: row.description ?? undefined,
+      id: row.id,
+      placesCount: Number(row.placesCount) || 0,
+      title: row.title,
+    }));
   }
 
   async findNearbyJourneys(

@@ -55,6 +55,14 @@ export class PostRepository {
     return await this.postMediaRepo.save(media);
   }
 
+  async findMediaByPostAndUrl(postId: string, url: string): Promise<PostMedia | null> {
+    return this.postMediaRepo.findOne({ where: { postId, url } });
+  }
+
+  async deleteMediaById(mediaId: string): Promise<void> {
+    await this.postMediaRepo.delete({ id: mediaId });
+  }
+
   async getPostById(postId: string): Promise<Post> {
     return await this.postRepo.findOne({
       where: { id: postId },

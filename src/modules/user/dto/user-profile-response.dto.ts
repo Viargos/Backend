@@ -26,6 +26,14 @@ export class RelationshipStatusDto {
   isFollowedBy: boolean;
 }
 
+export class PostSummaryJourneyDto {
+  @ApiProperty({ description: 'Journey ID' })
+  id: string;
+
+  @ApiProperty({ description: 'Journey title' })
+  title: string;
+}
+
 export class PostSummaryDto {
   @ApiProperty({ description: 'Post ID' })
   id: string;
@@ -45,6 +53,9 @@ export class PostSummaryDto {
   @ApiProperty({ description: 'Post media URLs', type: [String] })
   mediaUrls: string[];
 
+  @ApiProperty({ description: 'Journey this post is linked to (if any)', type: PostSummaryJourneyDto, required: false })
+  journey?: PostSummaryJourneyDto;
+
   constructor(post: Post) {
     this.id = post.id;
     this.description = post.description;
@@ -52,6 +63,9 @@ export class PostSummaryDto {
     this.commentCount = post.commentCount;
     this.createdAt = post.createdAt;
     this.mediaUrls = post.media?.map(media => media.url) || [];
+    if (post.journey?.id && post.journey?.title) {
+      this.journey = { id: post.journey.id, title: post.journey.title };
+    }
   }
 }
 

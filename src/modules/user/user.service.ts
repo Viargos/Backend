@@ -7,6 +7,7 @@ import { PostService } from '../post/post.service';
 import { JourneyService } from '../journey/journey.service';
 import { UserProfileResponseDto, UserStatsDto } from './dto/user-profile-response.dto';
 import { SearchUserDto, SearchUserResult } from './dto/search-user.dto';
+import { DashboardRecommendationDto } from '../post/dto/dashboard-recommendations.dto';
 
 @Injectable()
 export class UserService {
@@ -166,5 +167,89 @@ export class UserService {
 
   async searchUsersByTerm(searchTerm: string, limit: number = 10): Promise<User[]> {
     return this.userRepository.searchUsersByTerm(searchTerm, limit);
+  }
+
+  async getDashboardRecommendations(
+    currentUserId: string,
+    options?: { excludeUserIds?: string[]; limit?: number },
+  ): Promise<DashboardRecommendationDto[]> {
+    const recommendations = await this.userRepository.getDashboardRecommendations(
+      currentUserId,
+      options?.limit ?? 5,
+      options?.excludeUserIds ?? [],
+    );
+
+    return recommendations.map(recommendation => {
+      const category = this.inferRecommendationCategory(recommendation.bio, recommendation.location);
+
+      return {
+        category,
+        descriptor: this.buildRecommendationDescriptor({
+          bio: recommendation.bio,
+          category,
+          followersCount: recommendation.followersCount,
+          location: recommendation.location,
+          postsCount: recommendation.postsCount,
+        }),
+        followersCount: recommendation.followersCount,
+        id: recommendation.id,
+        isFollowing: false,
+        postsCount: recommendation.postsCount,
+        profileImage: recommendation.profileImage ?? null,
+        username: recommendation.username,
+      };
+    });
+  }
+
+  private buildRecommendationDescriptor(input: {
+    bio?: string;
+    category?: string;
+    followersCount: number;
+    location?: string;
+    postsCount: number;
+  }): string {
+    const normalizedBio = input.bio?.replace(/\s+/g, ' ').trim();
+
+    if (normalizedBio) {
+      return normalizedBio.length <= 72
+        ? normalizedBio
+        : `${normalizedBio.slice(0, 69).trimEnd()}...`;
+    }
+
+    if (input.category) {
+      return `${input.category} creator`;
+    }
+
+    if (input.location) {
+      return `Based in ${input.location}`;
+    }
+
+    if (input.postsCount > 0) {
+      return `${input.postsCount} posts shared`;
+    }
+
+    if (input.followersCount > 0) {
+      return `${input.followersCount} followers`;
+    }
+
+    return 'Community member';
+  }
+
+  private inferRecommendationCategory(bio?: string, location?: string): string | undefined {
+    const searchableText = `${bio ?? ''} ${location ?? ''}`.toLowerCase();
+
+    if (/(travel|trip|journey|itinerary|backpack|nomad|wander)/.test(searchableText)) {
+      return 'Travel';
+    }
+
+    if (/(fitness|coach|trainer|gym|wellness|yoga|runner|run)/.test(searchableText)) {
+      return 'Fitness';
+    }
+
+    if (/(ai|tech|developer|engineer|builder|startup|saas|software)/.test(searchableText)) {
+      return 'AI / Tech';
+    }
+
+    return undefined;
   }
 }

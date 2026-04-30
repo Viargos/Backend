@@ -7,16 +7,28 @@ import {
 } from '@nestjs/swagger';
 import { PostService } from './post.service';
 import { DashboardPostsDto } from './dto/dashboard-posts.dto';
+import {
+  DashboardRecommendationsQueryDto,
+  DashboardRecommendationsResponseDto,
+  DashboardJourneyRecommendationsQueryDto,
+  DashboardJourneyRecommendationsResponseDto,
+} from './dto/dashboard-recommendations.dto';
 import { Post as PostEntity } from './entities/post.entity';
 import { JwtAuthGuard } from 'src/security/jwt-auth.guard';
 import { DataResponse, StatusCode } from 'src/core/http/response';
+import { UserService } from '../user/user.service';
+import { JourneyService } from '../journey/journey.service';
 
 @ApiTags('dashboard')
 @Controller('dashboard')
 export class DashboardController {
   private readonly logger = new Logger(DashboardController.name);
 
-  constructor(private readonly postService: PostService) {}
+  constructor(
+    private readonly postService: PostService,
+    private readonly userService: UserService,
+    private readonly journeyService: JourneyService,
+  ) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -151,6 +163,68 @@ export class DashboardController {
         nextCursor: result.nextCursor,
         totalCount: result.totalCount,
       },
+    );
+  }
+
+  @Get('recommendations')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get recommended profiles for the dashboard right rail',
+    description:
+      'Returns a lightweight list of popular profiles that the current user is not already following.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard profile recommendations retrieved successfully',
+    type: DashboardRecommendationsResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
+  async getDashboardRecommendations(
+    @Request() req,
+    @Query() query: DashboardRecommendationsQueryDto,
+  ): Promise<DataResponse<DashboardRecommendationsResponseDto>> {
+    const profiles = await this.userService.getDashboardRecommendations(req.user.id, {
+      excludeUserIds: query.excludeUserIds,
+      limit: query.limit || 5,
+    });
+
+    return new DataResponse(
+      StatusCode.SUCCESS,
+      'Dashboard recommendations retrieved successfully',
+      { profiles },
+    );
+  }
+
+  @Get('popular-journeys')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get popular journeys for the dashboard right rail',
+    description:
+      'Returns a lightweight list of high-signal journeys for dashboard discovery.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard journey recommendations retrieved successfully',
+    type: DashboardJourneyRecommendationsResponseDto,
+  })
+  async getPopularJourneys(
+    @Request() req,
+    @Query() query: DashboardJourneyRecommendationsQueryDto,
+  ): Promise<DataResponse<DashboardJourneyRecommendationsResponseDto>> {
+    const journeys = await this.journeyService.getPopularJourneys(
+      req.user.id,
+      query.limit || 3,
+    );
+
+    return new DataResponse(
+      StatusCode.SUCCESS,
+      'Dashboard journey recommendations retrieved successfully',
+      { journeys },
     );
   }
 }

@@ -115,6 +115,24 @@ export class PostController {
     return media;
   }
 
+  @Delete(':postId/media')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a media item from a post by URL' })
+  @ApiResponse({ status: 200, description: 'Media removed successfully' })
+  async deleteMediaFromPost(
+    @Request() req: { user: User },
+    @Param('postId') postId: string,
+    @Query('url') mediaUrl: string,
+  ): Promise<{ message: string }> {
+    if (!mediaUrl) {
+      throw new BadRequestException('url query parameter is required');
+    }
+    this.logger.info('Removing media from post', { mediaUrl, postId, userId: req.user.id });
+    await this.postService.deleteMediaFromPost(req.user, postId, mediaUrl);
+    return { message: 'Media removed successfully' };
+  }
+
   @Post('media')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -128,7 +146,7 @@ export class PostController {
   async uploadPostMedia(
     @Request() req,
     @UploadedFile() file: Express.Multer.File, // ✅ FIXED: Type-safe instead of any
-  ): Promise<{ imageUrl: string; message: string }> {
+  ): Promise<{ data: { imageUrl: string; message: string } }> {
     // ✅ FIXED: Use BadRequestException with ERROR_MESSAGES
     if (!file) {
       this.logger.warn('Upload failed: No file provided', {
@@ -153,9 +171,12 @@ export class PostController {
       imageUrl,
     });
 
+    // Return in envelope format so frontend unwrapEnvelope() works
     return {
-      imageUrl,
-      message: SUCCESS_MESSAGES.FILE.UPLOAD_SUCCESS, // ✅ FIXED: Use constant
+      data: {
+        imageUrl,
+        message: SUCCESS_MESSAGES.FILE.UPLOAD_SUCCESS,
+      },
     };
   }
 

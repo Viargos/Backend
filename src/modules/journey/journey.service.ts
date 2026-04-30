@@ -4,10 +4,14 @@ import { Journey } from './entities/journey.entity';
 import { CreateJourneyDto } from './dto/create-journey.dto';
 import { UpdateJourneyDto } from './dto/update-journey.dto';
 import { NearbyJourneysDto } from './dto/nearby-journeys.dto';
+import { S3Service } from '../user/s3.service';
 
 @Injectable()
 export class JourneyService {
-  constructor(private readonly journeyRepository: JourneyRepository) {}
+  constructor(
+    private readonly journeyRepository: JourneyRepository,
+    private readonly s3Service: S3Service,
+  ) {}
 
   async create(createJourneyDto: CreateJourneyDto): Promise<Journey> {
     return this.journeyRepository.createJourney(createJourneyDto);
@@ -40,6 +44,14 @@ export class JourneyService {
     return this.journeyRepository.updateJourney(id, updateJourneyDto);
   }
 
+  async uploadCoverImage(userId: string, file: Express.Multer.File): Promise<string> {
+    return this.s3Service.uploadJourneyPhoto(file, userId);
+  }
+
+  async uploadPlaceMedia(userId: string, file: Express.Multer.File): Promise<string> {
+    return this.s3Service.uploadJourneyPhoto(file, userId);
+  }
+
   async remove(id: string): Promise<void> {
     const journey = await this.journeyRepository.findOneById(id);
     // Make deletion idempotent: if journey doesn't exist, treat it as already deleted
@@ -51,6 +63,25 @@ export class JourneyService {
 
   async getJourneyCountByUser(userId: string): Promise<number> {
     return this.journeyRepository.getJourneyCountByUser(userId);
+  }
+
+  async getPopularJourneys(
+    currentUserId: string,
+    limit: number = 3,
+  ): Promise<Array<{
+    coverImage?: string;
+    createdAt: string;
+    creator: {
+      id: string;
+      username: string;
+    };
+    daysCount: number;
+    description?: string;
+    id: string;
+    placesCount: number;
+    title: string;
+  }>> {
+    return this.journeyRepository.getPopularJourneys(currentUserId, limit);
   }
 
   async findNearby(nearbyDto: NearbyJourneysDto): Promise<Journey[]> {

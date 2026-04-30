@@ -42,6 +42,7 @@ import { JourneyModule } from '../journey/journey.module';
     UserOtpRepository,
     UserRelationshipService,
     UserRelationshipRepository,
+    S3Service,
   ],
 })
 export class UserModule {}

@@ -93,6 +93,29 @@ export class PostService {
     return media;
   }
 
+  async deleteMediaFromPost(
+    user: User,
+    postId: string,
+    mediaUrl: string,
+  ): Promise<void> {
+    const post = await this.postRepository.getPostById(postId);
+    if (!post) {
+      throw new NotFoundException(ERROR_MESSAGES.POST.NOT_FOUND);
+    }
+    if (post.user.id !== user.id) {
+      throw new BadRequestException(ERROR_MESSAGES.POST.PERMISSION_DENIED);
+    }
+
+    const media = await this.postRepository.findMediaByPostAndUrl(postId, mediaUrl);
+    if (!media) {
+      throw new NotFoundException('Media not found');
+    }
+
+    this.logger.info('Deleting media from post', { mediaId: media.id, postId, userId: user.id });
+    await this.postRepository.deleteMediaById(media.id);
+    this.logger.info('Media deleted from post', { mediaId: media.id, postId, userId: user.id });
+  }
+
   async getPost(postId: string): Promise<Post> {
     const post = await this.postRepository.getPostById(postId);
     if (!post) {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -9,8 +10,12 @@ import {
   UseGuards,
   Request,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiConsumes,
   ApiTags,
   ApiOperation,
   ApiResponse,
@@ -25,7 +30,7 @@ import { NearbyJourneysDto } from './dto/nearby-journeys.dto';
 
 // ✅ NEW: Import logger and constants
 import { Logger } from '../../common/utils';
-import { SUCCESS_MESSAGES } from '../../common/constants';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../common/constants';
 
 @ApiTags('journeys')
 @Controller('journeys')
@@ -70,6 +75,88 @@ export class JourneyController {
     });
 
     return journey;
+  }
+
+  @Post('cover-image')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload journey cover image' })
+  @ApiResponse({
+    status: 201,
+    description: 'Journey cover image uploaded successfully',
+  })
+  async uploadJourneyCoverImage(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ data: { imageUrl: string; message: string } }> {
+    if (!file) {
+      this.logger.warn('Journey cover upload failed: No file provided', {
+        userId: req.user.id,
+      });
+      throw new BadRequestException(ERROR_MESSAGES.FILE.NO_FILE_PROVIDED);
+    }
+
+    this.logger.info('Uploading journey cover image', {
+      userId: req.user.id,
+      fileName: file.originalname,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+    });
+
+    const imageUrl = await this.journeyService.uploadCoverImage(req.user.id, file);
+
+    this.logger.info('Journey cover image uploaded successfully', {
+      userId: req.user.id,
+      imageUrl,
+    });
+
+    return {
+      data: {
+        imageUrl,
+        message: SUCCESS_MESSAGES.FILE.UPLOAD_SUCCESS,
+      },
+    };
+  }
+
+  @Post('place-media')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload media for a journey place' })
+  @ApiResponse({
+    status: 201,
+    description: 'Journey place media uploaded successfully',
+  })
+  async uploadJourneyPlaceMedia(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ data: { imageUrl: string; message: string } }> {
+    if (!file) {
+      this.logger.warn('Journey place media upload failed: No file provided', {
+        userId: req.user.id,
+      });
+      throw new BadRequestException(ERROR_MESSAGES.FILE.NO_FILE_PROVIDED);
+    }
+
+    this.logger.info('Uploading journey place media', {
+      userId: req.user.id,
+      fileName: file.originalname,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+    });
+
+    const imageUrl = await this.journeyService.uploadPlaceMedia(req.user.id, file);
+
+    this.logger.info('Journey place media uploaded successfully', {
+      userId: req.user.id,
+      imageUrl,
+    });
+
+    return {
+      data: {
+        imageUrl,
+        message: SUCCESS_MESSAGES.FILE.UPLOAD_SUCCESS,
+      },
+    };
   }
 
   @Get()

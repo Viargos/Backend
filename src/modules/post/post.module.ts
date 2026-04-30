@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { PostController } from './post.controller';
@@ -10,11 +10,15 @@ import { PostMedia } from './entities/post-media.entity';
 import { PostLike } from './entities/post-like.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { S3Service } from '../user/s3.service';
+import { UserModule } from '../user/user.module';
+import { JourneyModule } from '../journey/journey.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Post, PostMedia, PostLike, PostComment]),
     ConfigModule,
+    forwardRef(() => UserModule),
+    forwardRef(() => JourneyModule),
   ],
   controllers: [PostController, DashboardController],
   providers: [PostService, PostRepository, S3Service],

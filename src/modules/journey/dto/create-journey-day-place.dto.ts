@@ -101,4 +101,32 @@ export class CreateJourneyDayPlaceDto {
   @Type(() => CreateJourneyMediaDto)
   @IsOptional()
   media?: CreateJourneyMediaDto[];
+
+  @ApiProperty({
+    required: false,
+    description: 'Shared identifier for places linked across multiple days',
+  })
+  @IsString()
+  @IsOptional()
+  bookingGroupId?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'First day number covered by the linked booking',
+    example: 1,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  bookingStartDayNumber?: number;
+
+  @ApiProperty({
+    required: false,
+    description: 'Last day number covered by the linked booking',
+    example: 3,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  bookingEndDayNumber?: number;
 }

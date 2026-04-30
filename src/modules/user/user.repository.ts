@@ -10,6 +10,17 @@ import { Repository, FindOptionsWhere, Like, ILike } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { PostgresErrorCode } from 'src/utils/constants';
 import { SearchUserDto, SearchUserResult } from './dto/search-user.dto';
+import { UserRelationship } from './entities/user-relationship.entity';
+
+type DashboardRecommendationRecord = {
+  id: string;
+  username: string;
+  profileImage: string | null;
+  bio: string | null;
+  location: string | null;
+  followerCount: string | number;
+  postCount: string | number;
+};
 
 @Injectable()
 export class UserRepository {
@@ -238,6 +249,90 @@ export class UserRepository {
     } catch (error) {
       this.logger.error(
         `Failed to search users by term: ${searchTerm}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async getDashboardRecommendations(
+    currentUserId: string,
+    limit: number,
+    excludeUserIds: string[] = [],
+  ): Promise<Array<{
+    id: string;
+    username: string;
+    profileImage?: string;
+    bio?: string;
+    location?: string;
+    followersCount: number;
+    postsCount: number;
+  }>> {
+    try {
+      const sanitizedExcludeUserIds = Array.from(new Set(
+        excludeUserIds
+          .map(userId => userId.trim())
+          .filter(Boolean)
+          .filter(userId => userId !== currentUserId),
+      ));
+
+      const queryBuilder = this.userRepo
+        .createQueryBuilder('user')
+        .leftJoin('user.posts', 'post')
+        .leftJoin(
+          UserRelationship,
+          'followers',
+          'followers.following_id = user.id',
+        )
+        .leftJoin(
+          UserRelationship,
+          'viewerRelationship',
+          'viewerRelationship.following_id = user.id AND viewerRelationship.follower_id = :currentUserId',
+          { currentUserId },
+        )
+        .select('user.id', 'id')
+        .addSelect('user.username', 'username')
+        .addSelect('user.profileImage', 'profileImage')
+        .addSelect('user.bio', 'bio')
+        .addSelect('user.location', 'location')
+        .addSelect('COUNT(DISTINCT followers.id)', 'followerCount')
+        .addSelect('COUNT(DISTINCT post.id)', 'postCount')
+        .where('user.id != :currentUserId', { currentUserId })
+        .andWhere('user.isActive = :isActive', { isActive: true })
+        .andWhere('viewerRelationship.id IS NULL')
+        .groupBy('user.id')
+        .addGroupBy('user.username')
+        .addGroupBy('user.profileImage')
+        .addGroupBy('user.bio')
+        .addGroupBy('user.location')
+        .having(
+          'COUNT(DISTINCT followers.id) > 0 OR COUNT(DISTINCT post.id) > 0 OR COALESCE(NULLIF(user.bio, \'\'), \'\') <> \'\'',
+        )
+        .orderBy('COUNT(DISTINCT followers.id)', 'DESC')
+        .addOrderBy('COUNT(DISTINCT post.id)', 'DESC')
+        .addOrderBy('user.createdAt', 'DESC')
+        .take(limit);
+
+      if (sanitizedExcludeUserIds.length > 0) {
+        queryBuilder.andWhere('user.id NOT IN (:...excludeUserIds)', {
+          excludeUserIds: sanitizedExcludeUserIds,
+        });
+      }
+
+      const rows = await queryBuilder.getRawMany<DashboardRecommendationRecord>();
+
+      return rows.map(row => ({
+        bio: row.bio ?? undefined,
+        followersCount: Number(row.followerCount) || 0,
+        id: row.id,
+        location: row.location ?? undefined,
+        postsCount: Number(row.postCount) || 0,
+        profileImage: row.profileImage ?? undefined,
+        username: row.username,
+      }));
+    } catch (error) {
+      this.logger.error(
+        `Failed to get dashboard recommendations for user: ${currentUserId}`,
         error.stack,
       );
       throw new InternalServerErrorException(error.message);
