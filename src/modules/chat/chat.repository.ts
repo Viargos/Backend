@@ -145,6 +145,8 @@ export class ChatRepository {
         'sender.email',
         'sender.profileImage',
         'sender.isActive',
+        'sender.isOnline',
+        'sender.lastSeen',
       ])
       .addSelect([
         'receiver.id',
@@ -152,6 +154,8 @@ export class ChatRepository {
         'receiver.email',
         'receiver.profileImage',
         'receiver.isActive',
+        'receiver.isOnline',
+        'receiver.lastSeen',
       ])
       .where('(message.senderId = :userId OR message.receiverId = :userId)', {
         userId,
@@ -299,12 +303,16 @@ export class ChatRepository {
         'sender.username',
         'sender.email',
         'sender.profileImage',
+        'sender.isOnline',
+        'sender.lastSeen',
       ])
       .addSelect([
         'receiver.id',
         'receiver.username',
         'receiver.email',
         'receiver.profileImage',
+        'receiver.isOnline',
+        'receiver.lastSeen',
       ])
       .where(
         '(message.senderId = :userId AND message.receiverId = :partnerId) OR (message.senderId = :partnerId AND message.receiverId = :userId)',
@@ -361,23 +369,24 @@ export class ChatRepository {
   }
 
   async getOnlineUsers(): Promise<User[]> {
-    // For now, return active users since isOnline is not in the User entity
     return this.userRepo.find({
-      where: { isActive: true },
+      where: { isActive: true, isOnline: true },
       select: {
         id: true,
         username: true,
         email: true,
         profileImage: true,
         isActive: true,
+        isOnline: true,
+        lastSeen: true,
       },
     });
   }
 
   async updateUserStatus(userId: string, isOnline: boolean): Promise<void> {
-    // Update isActive status instead of isOnline since it's not in the User entity
     await this.userRepo.update(userId, {
-      isActive: isOnline,
+      isOnline,
+      lastSeen: new Date(),
       updatedAt: new Date(),
     });
   }

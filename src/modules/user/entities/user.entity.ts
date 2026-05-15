@@ -45,6 +45,12 @@ export class User {
   @Column({ default: false })
   isActive: boolean;
 
+  @Column({ default: false })
+  isOnline: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastSeen: Date | null;
+
   @OneToMany(() => Post, (post) => post.user)
   posts: Post[];
 

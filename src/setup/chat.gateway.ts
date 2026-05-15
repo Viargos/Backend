@@ -163,19 +163,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const user = client.data.user;
     if (user) {
-      this.userSockets.delete(user.sub);
+      const activeSocket = this.userSockets.get(user.sub);
+      const isCurrentSocket = activeSocket?.id === client.id;
 
-      // Update user status to offline
-      await this.chatService.updateUserStatus(user.sub, false);
+      if (isCurrentSocket) {
+        this.userSockets.delete(user.sub);
 
-      // Notify other users that this user is offline
-      this.broadcastUserStatus(user.sub, false);
+        // Update user status to offline
+        await this.chatService.updateUserStatus(user.sub, false);
+
+        // Notify other users that this user is offline
+        this.broadcastUserStatus(user.sub, false);
+      }
 
       // Clear typing status
       this.typingUsers.delete(user.sub);
 
       // ✅ NEW: Structured disconnection log
       this.logger.info('User disconnected from chat', {
+        ignoredStaleSocket: !isCurrentSocket,
         userId: user.sub,
         socketId: client.id,
         totalConnections: this.userSockets.size,

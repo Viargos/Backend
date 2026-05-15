@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
+  IsBoolean,
   IsString,
 } from 'class-validator';
 import { User } from '../entities/user.entity';
@@ -70,6 +71,13 @@ export class UserDto {
   @IsString()
   readonly bannerImage?: string;
 
+  @ApiProperty({
+    example: true,
+    description: 'Whether the account has completed email verification and is active',
+  })
+  @IsBoolean()
+  readonly isActive: boolean;
+
   constructor(user: User) {
     this.id = user.id;
     this.username = user.username;
@@ -77,6 +85,7 @@ export class UserDto {
     this.phoneNumber = user.phoneNumber;
     this.profileImage = user.profileImage;
     this.bannerImage = user.bannerImage;
+    this.isActive = user.isActive;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
   }
