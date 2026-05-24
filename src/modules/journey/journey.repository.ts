@@ -115,7 +115,7 @@ export class JourneyRepository {
 
     const journey = await this.journeyRepo.findOne({
       where: { id },
-      relations: ['days', 'days.places', 'days.places.media'],
+      relations: ['user', 'days', 'days.places', 'days.places.media'],
       order: {
         days: {
           dayNumber: 'ASC',
@@ -149,7 +149,7 @@ export class JourneyRepository {
     console.log('[JOURNEY_FETCH] findAll called');
 
     const journeys = await this.journeyRepo.find({
-      relations: ['days', 'days.places', 'days.places.media'],
+      relations: ['user', 'days', 'days.places', 'days.places.media'],
       order: {
         days: {
           dayNumber: 'ASC',
@@ -357,7 +357,7 @@ export class JourneyRepository {
       // Return the updated journey with all relations
       const updatedJourney = await manager.findOne(Journey, {
         where: { id },
-        relations: ['days', 'days.places', 'days.places.media'],
+        relations: ['user', 'days', 'days.places', 'days.places.media'],
       });
 
       console.log('[JOURNEY_UPDATE] Update completed successfully');

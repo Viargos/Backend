@@ -26,6 +26,24 @@ export class PostRepository {
     private readonly dataSource: DataSource,
   ) {}
 
+  private normalizePaginationValue(
+    value: unknown,
+    fallback: number,
+    minimum: number,
+  ): number {
+    const parsed = typeof value === 'string' ? Number(value) : value;
+
+    if (
+      typeof parsed === 'number' &&
+      Number.isFinite(parsed) &&
+      parsed >= minimum
+    ) {
+      return Math.floor(parsed);
+    }
+
+    return fallback;
+  }
+
   async createPost(user: User, createPostDto: CreatePostDto): Promise<Post> {
     const post = this.postRepo.create({
       user,
@@ -365,29 +383,35 @@ export class PostRepository {
 
   async getComments(
     postId: string,
-    limit: number = 10,
-    offset: number = 0,
+    limit: number | string = 10,
+    offset: number | string = 0,
   ): Promise<PostComment[]> {
+    const safeLimit = this.normalizePaginationValue(limit, 10, 1);
+    const safeOffset = this.normalizePaginationValue(offset, 0, 0);
+
     return await this.postCommentRepo.find({
       where: { post: { id: postId }, parent: null },
       relations: ['user', 'post'],
       order: { createdAt: 'DESC' },
-      take: limit,
-      skip: offset,
+      take: safeLimit,
+      skip: safeOffset,
     });
   }
 
   async getReplies(
     commentId: string,
-    limit: number = 10,
-    offset: number = 0,
+    limit: number | string = 10,
+    offset: number | string = 0,
   ): Promise<PostComment[]> {
+    const safeLimit = this.normalizePaginationValue(limit, 10, 1);
+    const safeOffset = this.normalizePaginationValue(offset, 0, 0);
+
     return await this.postCommentRepo.find({
       where: { parent: { id: commentId } },
       relations: ['user', 'post'],
       order: { createdAt: 'ASC' },
-      take: limit,
-      skip: offset,
+      take: safeLimit,
+      skip: safeOffset,
     });
   }
 

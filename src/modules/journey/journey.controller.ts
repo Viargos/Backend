@@ -284,14 +284,16 @@ export class JourneyController {
   async update(
     @Param('id') id: string,
     @Body() updateJourneyDto: UpdateJourneyDto,
+    @Request() req,
   ): Promise<Journey> {
     // ✅ NEW: Log update attempt
     this.logger.info('Updating journey', {
       journeyId: id,
       fieldsToUpdate: Object.keys(updateJourneyDto),
+      userId: req.user.id,
     });
 
-    const journey = await this.journeyService.update(id, updateJourneyDto);
+    const journey = await this.journeyService.update(id, updateJourneyDto, req.user);
 
     // ✅ NEW: Log success
     this.logger.info('Journey updated successfully', {
@@ -305,14 +307,15 @@ export class JourneyController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a journey' })
   @ApiResponse({ status: 200, description: 'Journey deleted successfully' })
-  async remove(@Param('id') id: string): Promise<{ success: boolean }> {
+  async remove(@Param('id') id: string, @Request() req): Promise<{ success: boolean }> {
     // ✅ NEW: Log deletion
     this.logger.info('Deleting journey', {
       journeyId: id,
+      userId: req.user.id,
     });
 
     try {
-      await this.journeyService.remove(id);
+      await this.journeyService.remove(id, req.user);
 
       // ✅ NEW: Log success
       this.logger.info('Journey deleted successfully', {

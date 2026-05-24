@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ERROR_MESSAGES } from '../../common/constants';
 import { JourneyRepository } from './journey.repository';
 import { Journey } from './entities/journey.entity';
 import { CreateJourneyDto } from './dto/create-journey.dto';
 import { UpdateJourneyDto } from './dto/update-journey.dto';
 import { NearbyJourneysDto } from './dto/nearby-journeys.dto';
 import { S3Service } from '../user/s3.service';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class JourneyService {
@@ -36,12 +38,23 @@ export class JourneyService {
   async update(
     id: string,
     updateJourneyDto: UpdateJourneyDto,
+    user: User,
   ): Promise<Journey> {
     const journey = await this.journeyRepository.findOneById(id);
     if (!journey) {
-      throw new NotFoundException('Journey not found');
+      throw new NotFoundException(ERROR_MESSAGES.JOURNEY.NOT_FOUND);
     }
-    return this.journeyRepository.updateJourney(id, updateJourneyDto);
+
+    if (!this.isJourneyOwner(journey, user)) {
+      throw new ForbiddenException(ERROR_MESSAGES.JOURNEY.PERMISSION_DENIED);
+    }
+
+    const { createdById: _createdById, user: _user, userId: _userId, ...safeUpdateDto } = updateJourneyDto as UpdateJourneyDto & {
+      createdById?: unknown;
+      userId?: unknown;
+    };
+
+    return this.journeyRepository.updateJourney(id, safeUpdateDto);
   }
 
   async uploadCoverImage(userId: string, file: Express.Multer.File): Promise<string> {
@@ -52,13 +65,24 @@ export class JourneyService {
     return this.s3Service.uploadJourneyPhoto(file, userId);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, user: User): Promise<void> {
     const journey = await this.journeyRepository.findOneById(id);
-    // Make deletion idempotent: if journey doesn't exist, treat it as already deleted
     if (!journey) {
-      return; // Journey already deleted or doesn't exist - consider it successful
+      throw new NotFoundException(ERROR_MESSAGES.JOURNEY.NOT_FOUND);
     }
+
+    if (!this.isJourneyOwner(journey, user)) {
+      throw new ForbiddenException(ERROR_MESSAGES.JOURNEY.PERMISSION_DENIED);
+    }
+
     return this.journeyRepository.removeJourney(id);
+  }
+
+  private isJourneyOwner(journey: Journey, user: User): boolean {
+    const ownerId = journey.user?.id;
+    const currentUserId = user?.id;
+
+    return Boolean(ownerId && currentUserId && String(ownerId) === String(currentUserId));
   }
 
   async getJourneyCountByUser(userId: string): Promise<number> {
