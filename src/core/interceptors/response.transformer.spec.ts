@@ -53,7 +53,7 @@ describe('ResponseTransformerInterceptor', () => {
     const result = await lastValueFrom(interceptor.intercept(context, next));
 
     expect(result).toEqual(
-      new DataResponse(StatusCode.SUCCESS, 'success', complexObject),
+      new DataResponse(StatusCode.SUCCESS, 'Success', complexObject),
     );
   });
 });

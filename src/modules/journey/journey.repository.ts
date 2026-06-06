@@ -5,6 +5,7 @@ import { Journey } from './entities/journey.entity';
 import { CreateJourneyDto } from './dto/create-journey.dto';
 import { UpdateJourneyDto } from './dto/update-journey.dto';
 import { JourneyMediaType } from './entities/journey-media.entity';
+import { GeoIndexService } from './geo/geo-index.service';
 
 function normalizeOptionalTime(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -22,6 +23,7 @@ export class JourneyRepository {
     private readonly journeyRepo: Repository<Journey>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly geoIndexService: GeoIndexService,
   ) {}
 
   async createJourney(createJourneyDto: CreateJourneyDto): Promise<Journey> {
@@ -72,8 +74,14 @@ export class JourneyRepository {
             // Strip out legacy image fields so they don't end up on the entity
             const { photos: _photos, images: _images, ...rest } = anyPlace;
 
+            const s2Index = this.geoIndexService.buildPlaceIndex(
+              anyPlace.latitude,
+              anyPlace.longitude,
+            );
+
             return {
               ...rest,
+              ...s2Index,
               endTime: normalizeOptionalTime(anyPlace.endTime),
               media: combinedMedia.length > 0 ? combinedMedia : undefined,
               startTime: normalizeOptionalTime(anyPlace.startTime),
@@ -290,19 +298,27 @@ export class JourneyRepository {
               const photos: string[] = anyPlace.photos || anyPlace.images || [];
               const explicitMedia = Array.isArray(anyPlace.media) ? anyPlace.media : [];
 
+              const s2Index = this.geoIndexService.buildPlaceIndex(
+                place.latitude,
+                place.longitude,
+              );
+
               // Insert the place
               const placeResult = await manager.query(
                 `INSERT INTO journey_day_place
-                 ("type", "name", "description", "address", "latitude", "longitude", "startTime", "endTime", "order", "bookingGroupId", "bookingStartDayNumber", "bookingEndDayNumber", "journeyDayId")
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                 ("type", "name", "description", "address", "latitude", "longitude", "s2CellIdLevel10", "s2CellIdLevel12", "s2CellIdLevel14", "startTime", "endTime", "order", "bookingGroupId", "bookingStartDayNumber", "bookingEndDayNumber", "journeyDayId")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                  RETURNING id`,
                 [
                   place.type,
                   place.name,
                   place.description || null,
                   place.address || null,
-                  place.latitude || null,
-                  place.longitude || null,
+                  place.latitude ?? null,
+                  place.longitude ?? null,
+                  s2Index.s2CellIdLevel10,
+                  s2Index.s2CellIdLevel12,
+                  s2Index.s2CellIdLevel14,
                   normalizeOptionalTime(place.startTime),
                   normalizeOptionalTime(place.endTime),
                   (place as any).order ?? null,

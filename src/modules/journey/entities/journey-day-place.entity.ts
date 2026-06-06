@@ -36,6 +36,15 @@ export class JourneyDayPlace {
   @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
   longitude: number;
 
+  @Column({ length: 16, nullable: true })
+  s2CellIdLevel10?: string;
+
+  @Column({ length: 16, nullable: true })
+  s2CellIdLevel12?: string;
+
+  @Column({ length: 16, nullable: true })
+  s2CellIdLevel14?: string;
+
   @Column({ type: 'time', nullable: true })
   startTime: string;
 

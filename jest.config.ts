@@ -1,7 +1,7 @@
 module.exports = {
   moduleNameMapper: {
-    '^@utils/(.*)$': '<rootDir>/src/utils/$1',
-    '^src/(.*)$': '<rootDir>/src/$1',
+    '^@utils/(.*)$': '<rootDir>/utils/$1',
+    '^src/(.*)$': '<rootDir>/$1',
   },
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: 'src',

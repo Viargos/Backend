@@ -7,6 +7,8 @@ import {
   IsNumber,
   IsArray,
   ValidateNested,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PlaceType } from '../entities/journey-day-place.entity';
@@ -64,12 +66,16 @@ export class CreateJourneyDayPlaceDto {
   @IsNumber()
   @IsOptional()
   @Type(() => Number)
+  @Min(-90)
+  @Max(90)
   latitude?: number;
 
   @ApiProperty({ required: false, description: 'Longitude coordinate', example: -74.006 })
   @IsNumber()
   @IsOptional()
   @Type(() => Number)
+  @Min(-180)
+  @Max(180)
   longitude?: number;
 
   @ApiProperty({ required: false })
