@@ -1,9 +1,5 @@
 import { Test } from '@nestjs/testing';
-import {
-  ExecutionContext,
-  InternalServerErrorException,
-  CallHandler,
-} from '@nestjs/common';
+import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable, of, lastValueFrom } from 'rxjs';
 import { ResponseValidation } from './response.validations';
 import * as classValidator from 'class-validator';
@@ -33,34 +29,14 @@ describe('ResponseValidationInterceptor', () => {
     interceptor = module.get(ResponseValidation);
   });
 
-  it('should not throw an exception for a valid response', async () => {
-    jest.spyOn(mockCallHandler, 'handle').mockReturnValue(of({}));
+  it('should pass responses through without validation', async () => {
+    const responsePayload = { id: 'response-1' };
+    jest.spyOn(mockCallHandler, 'handle').mockReturnValue(of(responsePayload));
 
-    (classValidator.validateSync as jest.Mock).mockReturnValue([]);
+    const result = await lastValueFrom(interceptor.intercept(context, mockCallHandler));
 
-    await expect(
-      lastValueFrom(interceptor.intercept(context, mockCallHandler)),
-    ).resolves.not.toThrow();
-
-    expect(classValidator.validateSync).toHaveBeenCalled();
-  });
-
-  it('should throw InternalServerErrorException for an invalid response', async () => {
-    const validationError = {
-      constraints: { exampleConstraint: 'Error message' },
-    };
-
-    jest.spyOn(mockCallHandler, 'handle').mockReturnValue(of({}));
-
-    (classValidator.validateSync as jest.Mock).mockReturnValue([
-      validationError,
-    ]);
-
-    await expect(
-      lastValueFrom(interceptor.intercept(context, mockCallHandler)),
-    ).rejects.toThrow(InternalServerErrorException);
-
-    expect(classValidator.validateSync).toHaveBeenCalled();
+    expect(result).toBe(responsePayload);
+    expect(classValidator.validateSync).not.toHaveBeenCalled();
   });
 
   it('should extract error messages correctly', () => {
@@ -75,7 +51,7 @@ describe('ResponseValidationInterceptor', () => {
       } as classValidator.ValidationError,
     ];
 
-    const result = interceptor['extractErrorMessages'](errors, []);
+    const result = interceptor['extractErrorMessages'](errors);
 
     expect(result).toEqual(['Error message 1', 'Error message 2']);
   });

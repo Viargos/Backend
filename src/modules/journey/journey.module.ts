@@ -8,6 +8,7 @@ import { JourneyDayPlace } from './entities/journey-day-place.entity';
 import { JourneyController } from './journey.controller';
 import { JourneyService } from './journey.service';
 import { JourneyRepository } from './journey.repository';
+import { GeoIndexService } from './geo/geo-index.service';
 import { UserModule } from '../user/user.module';
 
 @Module({
@@ -19,7 +20,7 @@ import { UserModule } from '../user/user.module';
     forwardRef(() => UserModule),
   ],
   controllers: [JourneyController],
-  providers: [JourneyService, JourneyRepository],
+  providers: [JourneyService, JourneyRepository, GeoIndexService],
   exports: [JourneyService],
 })
 export class JourneyModule {}

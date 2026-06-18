@@ -18,7 +18,7 @@ describe('ExceptionHandler', () => {
 
   const mockSetStatus = jest.fn(() => ({ json: mockSetJson }));
   const mockSetJson = jest.fn();
-  const mockAppendHeader = jest.fn();
+  const mockSetHeader = jest.fn();
   const mockServiceConfig = jest.fn();
 
   const hostMock: ArgumentsHost = {
@@ -26,7 +26,7 @@ describe('ExceptionHandler', () => {
       ({
         getResponse: () =>
           ({
-            appendHeader: mockAppendHeader,
+            setHeader: mockSetHeader,
             status: mockSetStatus,
           }) as any,
         getRequest: () => ({ url: 'test' }),
@@ -68,7 +68,7 @@ describe('ExceptionHandler', () => {
       url: 'test',
     });
 
-    expect(mockAppendHeader).toHaveBeenCalledWith(
+    expect(mockSetHeader).toHaveBeenCalledWith(
       'instruction',
       'refresh_token',
     );
@@ -87,7 +87,7 @@ describe('ExceptionHandler', () => {
       url: 'test',
     });
 
-    expect(mockAppendHeader).toHaveBeenCalledWith('instruction', 'logout');
+    expect(mockSetHeader).toHaveBeenCalledWith('instruction', 'logout');
     expect(exceptionHandler['logger'].error).not.toHaveBeenCalled();
   });
 
@@ -103,7 +103,7 @@ describe('ExceptionHandler', () => {
       url: 'test',
     });
 
-    expect(mockAppendHeader).not.toHaveBeenCalled();
+    expect(mockSetHeader).not.toHaveBeenCalled();
     expect(exceptionHandler['logger'].error).not.toHaveBeenCalled();
   });
 
@@ -121,7 +121,7 @@ describe('ExceptionHandler', () => {
       url: 'test',
     });
 
-    expect(mockAppendHeader).not.toHaveBeenCalled();
+    expect(mockSetHeader).not.toHaveBeenCalled();
     expect(exceptionHandler['logger'].error).toHaveBeenCalled();
   });
 
@@ -139,7 +139,7 @@ describe('ExceptionHandler', () => {
       url: 'test',
     });
 
-    expect(mockAppendHeader).not.toHaveBeenCalled();
+    expect(mockSetHeader).not.toHaveBeenCalled();
     expect(exceptionHandler['logger'].error).toHaveBeenCalled();
   });
 
@@ -158,7 +158,7 @@ describe('ExceptionHandler', () => {
       url: 'test',
     });
 
-    expect(mockAppendHeader).not.toHaveBeenCalled();
+    expect(mockSetHeader).not.toHaveBeenCalled();
     expect(exceptionHandler['logger'].error).toHaveBeenCalled();
   });
 });
