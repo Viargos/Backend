@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { User } from '../user/entities/user.entity';
 import { S3Service } from './s3.service';
@@ -32,6 +32,9 @@ export class UserService {
   }
 
   async updateUser(userId: string, updateData: Partial<User>): Promise<User> {
+    if (updateData.email !== undefined) {
+      throw new BadRequestException('Email address cannot be changed.');
+    }
     return this.userRepository.updateUser(userId, updateData);
   }
 
