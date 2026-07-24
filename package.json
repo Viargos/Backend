@@ -24,7 +24,8 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm -- -d src/config/typeorm.config.ts migration:generate",
     "migration:run": "npm run typeorm -- -d src/config/typeorm.config.ts migration:run",
-    "migration:revert": "npm run typeorm -- -d src/config/typeorm.config.ts migration:revert"
+    "migration:revert": "npm run typeorm -- -d src/config/typeorm.config.ts migration:revert",
+    "notifications:generate-vapid": "web-push generate-vapid-keys --json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.890.0",
@@ -68,6 +69,7 @@
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
     "uuid": "^11.1.0",
+    "web-push": "^3.6.7",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
@@ -80,6 +82,7 @@
     "@types/jest": "^29.5.2",
     "@types/node": "^20.3.1",
     "@types/supertest": "^6.0.0",
+    "@types/web-push": "^3.6.4",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",

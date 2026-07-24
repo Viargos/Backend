@@ -16,11 +16,20 @@ import { JourneyModule } from './modules/journey/journey.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { LocationModule } from './modules/location/location.module';
 import authkeyConfig from './config/authkey.config';
+import notificationConfig from './config/notification.config';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      load: [serverConfig, databaseConfig, tokenConfig, authkeyConfig, cookieConfig],
+      load: [
+        serverConfig,
+        databaseConfig,
+        tokenConfig,
+        authkeyConfig,
+        cookieConfig,
+        notificationConfig,
+      ],
       cache: true,
       envFilePath: getEnvFilePath(),
     }),
@@ -41,6 +50,7 @@ import authkeyConfig from './config/authkey.config';
     JourneyModule,
     ChatModule,
     LocationModule,
+    NotificationModule,
     SetupModule,
   ],
 })

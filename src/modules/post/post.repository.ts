@@ -99,6 +99,15 @@ export class PostRepository {
     });
   }
 
+  async getPostOwnerForNotification(postId: string): Promise<Post> {
+    return this.postRepo
+      .createQueryBuilder('post')
+      .innerJoinAndSelect('post.user', 'user')
+      .select(['post.id', 'user.id'])
+      .where('post.id = :postId', { postId })
+      .getOne();
+  }
+
   async getPublicPosts(limit: number = 10): Promise<Post[]> {
     return await this.postRepo.find({
       relations: ['user', 'media', 'likes', 'comments', 'journey'],

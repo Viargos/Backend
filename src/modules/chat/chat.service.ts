@@ -9,12 +9,15 @@ import { UserRepository } from '../user/user.repository';
 import { ChatMessage } from './entities/chat-message.entity';
 import { User } from '../user/entities/user.entity';
 import { SearchUsersDto } from './dto/search-users.dto';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationEventType } from '../notification/notification.constants';
 
 @Injectable()
 export class ChatService {
   constructor(
     private readonly chatRepository: ChatRepository,
     private readonly userRepository: UserRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async sendMessage(
@@ -38,7 +41,24 @@ export class ChatService {
     }
 
     // Create and save message
-    return this.chatRepository.createMessage(senderId, receiverId, content);
+    const message = await this.chatRepository.createMessage(
+      senderId,
+      receiverId,
+      content,
+    );
+    void this.notificationService
+      .createEvent({
+        dedupeKey: `message:${message.id}`,
+        destinationUrl: `/messages?conversation=${encodeURIComponent(
+          [senderId, receiverId].sort().join('__'),
+        )}`,
+        eventType: NotificationEventType.MESSAGE_NEW,
+        userId: receiverId,
+        variables: { actor: sender.username },
+      })
+      .catch(() => undefined);
+
+    return message;
   }
 
   async getMessagesBetweenUsers(

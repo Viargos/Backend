@@ -7,16 +7,32 @@ import { UpdateJourneyDto } from './dto/update-journey.dto';
 import { NearbyJourneysDto } from './dto/nearby-journeys.dto';
 import { S3Service } from '../user/s3.service';
 import { User } from '../user/entities/user.entity';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationEventType } from '../notification/notification.constants';
 
 @Injectable()
 export class JourneyService {
   constructor(
     private readonly journeyRepository: JourneyRepository,
     private readonly s3Service: S3Service,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(createJourneyDto: CreateJourneyDto): Promise<Journey> {
-    return this.journeyRepository.createJourney(createJourneyDto);
+    const journey =
+      await this.journeyRepository.createJourney(createJourneyDto);
+    if (createJourneyDto.user?.id) {
+      void this.notificationService
+        .createEvent({
+          dedupeKey: `journey-created:${journey.id}`,
+          destinationUrl: `/journey/${encodeURIComponent(journey.id)}`,
+          eventType: NotificationEventType.OPERATION_SUCCEEDED,
+          userId: createJourneyDto.user.id,
+          variables: { action: `Your journey “${journey.title}”` },
+        })
+        .catch(() => undefined);
+    }
+    return journey;
   }
 
   async findAll(): Promise<Journey[]> {
@@ -54,7 +70,18 @@ export class JourneyService {
       userId?: unknown;
     };
 
-    return this.journeyRepository.updateJourney(id, safeUpdateDto);
+    const updatedJourney =
+      await this.journeyRepository.updateJourney(id, safeUpdateDto);
+    void this.notificationService
+      .createEvent({
+        dedupeKey: `journey-updated:${id}:${updatedJourney.updatedAt?.getTime() ?? Date.now()}`,
+        destinationUrl: `/journey/${encodeURIComponent(id)}`,
+        eventType: NotificationEventType.OPERATION_SUCCEEDED,
+        userId: user.id,
+        variables: { action: `Your journey “${updatedJourney.title}”` },
+      })
+      .catch(() => undefined);
+    return updatedJourney;
   }
 
   async uploadCoverImage(userId: string, file: Express.Multer.File): Promise<string> {

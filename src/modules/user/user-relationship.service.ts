@@ -3,12 +3,15 @@ import { User } from './entities/user.entity';
 import { FollowUserDto } from './dto/follow-user.dto';
 import { UserRepository } from './user.repository';
 import { UserRelationshipRepository } from './user-relationship.repository';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationEventType } from '../notification/notification.constants';
 
 @Injectable()
 export class UserRelationshipService {
   constructor(
     private readonly userRelationshipRepo: UserRelationshipRepository,
     private readonly userRepository: UserRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async followUser(follower: User, followUserDto: FollowUserDto): Promise<{ message: string }> {
@@ -33,6 +36,15 @@ export class UserRelationshipService {
 
     // Create follow relationship
     await this.userRelationshipRepo.followUser(follower, followingUser);
+    void this.notificationService
+      .createEvent({
+        dedupeKey: `follow:${follower.id}:${followingId}`,
+        destinationUrl: `/profile/${encodeURIComponent(follower.username)}`,
+        eventType: NotificationEventType.SOCIAL_FOLLOW,
+        userId: followingId,
+        variables: { actor: follower.username },
+      })
+      .catch(() => undefined);
     return { message: 'Successfully followed user' };
   }
 

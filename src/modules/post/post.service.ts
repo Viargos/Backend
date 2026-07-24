@@ -16,6 +16,8 @@ import { S3Service } from '../user/s3.service';
 // ✅ NEW: Import logger and constants
 import { Logger } from '../../common/utils';
 import { ERROR_MESSAGES } from '../../common/constants';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationEventType } from '../notification/notification.constants';
 
 @Injectable()
 export class PostService {
@@ -27,6 +29,7 @@ export class PostService {
   constructor(
     private readonly postRepository: PostRepository,
     private readonly s3Service: S3Service,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async createPost(user: User, createPostDto: CreatePostDto): Promise<Post> {
@@ -316,6 +319,24 @@ export class PostService {
     // Minimal logging for performance
     this.logger.debug('Post liked', { postId, userId: user.id });
 
+    const notificationPost =
+      await this.postRepository.getPostOwnerForNotification(postId);
+    if (
+      result.isLiked &&
+      notificationPost?.user?.id &&
+      notificationPost.user.id !== user.id
+    ) {
+      void this.notificationService
+        .createEvent({
+          dedupeKey: `like:${postId}:${user.id}`,
+          destinationUrl: `/notifications?post=${encodeURIComponent(postId)}`,
+          eventType: NotificationEventType.SOCIAL_LIKE,
+          userId: notificationPost.user.id,
+          variables: { actor: user.username },
+        })
+        .catch(() => undefined);
+    }
+
     return result;
   }
 
@@ -382,6 +403,18 @@ export class PostService {
       userId: user.id,
       isReply: !!parentId,
     });
+
+    if (post.user?.id && post.user.id !== user.id) {
+      void this.notificationService
+        .createEvent({
+          dedupeKey: `comment:${comment.id}`,
+          destinationUrl: `/notifications?post=${encodeURIComponent(postId)}`,
+          eventType: NotificationEventType.SOCIAL_COMMENT,
+          userId: post.user.id,
+          variables: { actor: user.username },
+        })
+        .catch(() => undefined);
+    }
 
     return comment;
   }
